@@ -36,7 +36,11 @@ A continuación se detalla la arquitectura de directorios del proyecto DevStudio
 │       │   ├── MainActivity.kt    # Punto de entrada Activity liviano y temas
 │       │   ├── data/              # Capa de Datos (Room DB, DAOs, Entidades, Repositorio, API)
 │       │   │   ├── api/           # API de Inteligencia Artificial y Skills
-│       │   │   │   ├── AiAgentService.kt   # Servicio de streaming para Gemini y OpenRouter
+│       │   │   │   ├── AiAgentService.kt   # Servicio principal de streaming orquestador
+│       │   │   │   ├── service/           # Proveedores modulares de streaming
+│       │   │   │   │   ├── GeminiStreamProvider.kt    # Proveedor de streaming Gemini API
+│       │   │   │   │   ├── OpenRouterStreamProvider.kt# Proveedor de streaming OpenRouter API
+│       │   │   │   │   └── AiContentParser.kt         # Parser de contenido y tool calls
 │       │   │   │   ├── AiAgentModels.kt   # Modelos y Enums (AiProvider, StreamResult)
 │       │   │   │   ├── ToolSchemaBuilder.kt# Generador de declaraciones de Function Calling JSON
 │       │   │   │   └── AiSkills.kt        # Carga e inyección de habilidades .md
@@ -44,7 +48,13 @@ A continuación se detalla la arquitectura de directorios del proyecto DevStudio
 │       │   │   └── repository/    # Repositorio modular
 │       │   │       ├── IdeRepository.kt   # Orquestador principal de repositorio
 │       │   │       └── delegate/          # Delegados especializados de datos
-│       │   │           ├── ProjectTemplateDelegate.kt# Plantillas de proyectos (Web, Compose, Rust, C++)
+│       │   │           ├── ProjectTemplateDelegate.kt# Orquestador de plantillas de proyectos
+│       │   │           ├── template/          # Proveedores modulares de plantillas
+│       │   │           │   ├── WebTemplateProvider.kt            # Plantilla HTML5/CSS/JS
+│       │   │           │   ├── AndroidComposeTemplateProvider.kt # Plantilla Kotlin + Compose
+│       │   │           │   ├── RustServerTemplateProvider.kt     # Plantilla Servidor Rust
+│       │   │           │   ├── CppNativeTemplateProvider.kt      # Plantilla Motor C++ JNI
+│       │   │           │   └── NodeApiTemplateProvider.kt        # Plantilla Node.js API
 │       │   │           ├── LinterEngineDelegate.kt   # Análisis de linter y consola diagnóstica
 │       │   │           ├── FileOperationsDelegate.kt # Operaciones CRUD y edición por coincidencias
 │       │   │           └── ChatOperationsDelegate.kt # Historial de mensajes de chat
@@ -53,6 +63,9 @@ A continuación se detalla la arquitectura de directorios del proyecto DevStudio
 │       │   │   └── RustHttpServer.kt # Interfaz Kotlin para el Servidor HTTP Rust
 │       │   └── ui/                # Componentes de Interfaz con Jetpack Compose
 │       │       ├── IdeViewModel.kt # ViewModel principal modularizado
+│       │       ├── handler/       # Gestores y manejadores de lógica del ViewModel
+│       │       │   ├── AiPreferencesManager.kt # Persistencia de preferencias de IA y API Keys
+│       │       │   └── AgentPromptRunner.kt    # Orquestador de streaming y herramientas IA
 │       │       ├── state/         # Estados de UI desacoplados
 │       │       │   └── IdeUiState.kt # Modelos de estado (IdeUiState, IdeViewMode, etc.)
 │       │       ├── delegate/      # Delegados de lógica de UI
@@ -63,12 +76,33 @@ A continuación se detalla la arquitectura de directorios del proyecto DevStudio
 │       │       │   ├── OpenTabsRow.kt      # Barra de pestañas abiertas
 │       │       │   ├── CodeEditorView.kt   # Editor de código nativo con scroll y numeración
 │       │       │   ├── SyntaxHighlighter.kt# Motor de coloreado de sintaxis
-│       │       │   ├── FileManagerDrawer.kt# Árbol de archivos/carpetas jerárquico
+│       │       │   ├── FileManagerDrawer.kt# Orquestador del menú de explorador de archivos
+│       │       │   ├── filemanager/        # Subcomponentes modulares de exploración de archivos
+│       │       │   │   ├── FileTreeUtils.kt    # Modelo y algoritmo de aplanamiento jerárquico
+│       │       │   │   ├── FileTreeItemRow.kt  # Fila individual de elemento del árbol de archivos
+│       │       │   │   └── FileDrawerFooter.kt # Pie de página con estado C++/Rust/DevStudio
 │       │       │   ├── NewFileDialog.kt    # Diálogo para crear archivos y carpetas
-│       │       │   ├── LivePreviewView.kt  # Vista previa interactiva con servidor HTTP
-│       │       │   ├── DiagnosticConsoleView.kt # Consola de diagnósticos y registros del linter
+│       │       │   ├── LivePreviewView.kt  # Orquestador de la vista previa del servidor web
+│       │       │   ├── preview/            # Subcomponentes modulares de vista previa
+│       │       │   │   ├── PreviewToolbar.kt        # Barra de navegación, URL y modo dispositivo
+│       │       │   │   ├── PreviewPageSelector.kt   # Chips de selección de páginas HTML
+│       │       │   │   └── PreviewWebViewContainer.kt # Contenedor WebView con WebViewClient
+│       │       │   ├── DiagnosticConsoleView.kt # Orquestador de consola diagnóstica
+│       │       │   ├── diagnostic/         # Subcomponentes modulares de diagnósticos
+│       │       │   │   ├── DiagnosticStatusBanner.kt# Banner con resumen de conteo de errores
+│       │       │   │   ├── DiagnosticToolbar.kt     # Chips de filtro y acciones de re-análisis
+│       │       │   │   └── DiagnosticLogCard.kt     # Tarjeta individual de registro de diagnóstico
 │       │       │   ├── WorkspaceScreen.kt  # Pantalla de selección y creación de proyectos
+│       │       │   ├── workspace/          # Componentes modulares del Espacio de Trabajo
+│       │       │   │   ├── ProjectCardItem.kt       # Tarjeta individual de proyecto
+│       │       │   │   └── NewProjectModalDialog.kt # Modal de creación de proyecto
 │       │       │   ├── AiAgentChatSheet.kt # Interfaz del Asistente de IA con streaming
+│       │       │   ├── chat/               # Componentes modulares del Chat IA
+│       │       │   │   ├── ChatHeader.kt        # Cabecera con estado y controles
+│       │       │   │   ├── ChatModeBar.kt       # Modos de chat, proveedores y skills
+│       │       │   │   ├── ChatMessageList.kt   # Mensajes y cuadro de código propuesto
+│       │       │   │   ├── ToolPillItem.kt      # Pastillas visuales con íconos para tool execution
+│       │       │   │   └── ChatInputArea.kt     # Entrada de texto y promts rápidos
 │       │       │   ├── AiSettingsDialog.kt # Diálogo de configuración de API Keys
 │       │       │   └── QuickSymbolBar.kt   # Barra rápida de símbolos para teclado móvil
 │       │       └── theme/         # Sistema de diseño M3 y paleta de colores Editor

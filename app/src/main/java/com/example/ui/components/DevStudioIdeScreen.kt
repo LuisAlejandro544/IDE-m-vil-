@@ -67,6 +67,7 @@ fun DevStudioIdeScreen(
     onInsertSymbol: (String) -> Unit,
     onSelectProvider: (AiProvider) -> Unit,
     onSelectChatMode: (ChatMode) -> Unit = {},
+    onClearChat: () -> Unit = {},
     onOpenSettings: () -> Unit,
     onSaveAiSettings: (AiProvider, String, String) -> Unit,
     onDismissAiSettings: () -> Unit
@@ -222,6 +223,7 @@ fun DevStudioIdeScreen(
                         onOpenSettings = onOpenSettings,
                         onSendPrompt = onSendAgentPrompt,
                         onApplyProposedCode = onApplyProposedCode,
+                        onClearChat = onClearChat,
                         onCloseChat = onToggleChat
                     )
                 }

@@ -1,7 +1,6 @@
 package com.example.ui
 
 import android.app.Application
-import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.api.AiAgentService
@@ -13,6 +12,8 @@ import com.example.data.db.ProjectEntity
 import com.example.data.db.ProjectFileEntity
 import com.example.data.repository.IdeRepository
 import com.example.ui.delegate.AgentToolExecutor
+import com.example.ui.handler.AgentPromptRunner
+import com.example.ui.handler.AiPreferencesManager
 import com.example.ui.state.AiAndDiagnosticsState
 import com.example.ui.state.EditorState
 import com.example.ui.state.IdeUiState
@@ -41,8 +42,8 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
     )
     private val aiAgentService = AiAgentService()
     private val toolExecutor = AgentToolExecutor(repository)
-
-    private val prefs = application.getSharedPreferences("devstudio_ai_prefs", Context.MODE_PRIVATE)
+    private val agentPromptRunner = AgentPromptRunner(repository, aiAgentService, toolExecutor)
+    private val prefsManager = AiPreferencesManager(application)
 
     private val _currentProjectId = MutableStateFlow<Long?>(null)
     private val _currentProject = MutableStateFlow<ProjectEntity?>(null)
@@ -154,12 +155,10 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     init {
-        val savedProviderName = prefs.getString("ai_provider", AiProvider.GEMINI.name) ?: AiProvider.GEMINI.name
-        _selectedAiProvider.value = try { AiProvider.valueOf(savedProviderName) } catch (e: Exception) { AiProvider.GEMINI }
-        val savedModeName = prefs.getString("chat_mode", ChatMode.STEP_BY_STEP.name) ?: ChatMode.STEP_BY_STEP.name
-        _selectedChatMode.value = try { ChatMode.valueOf(savedModeName) } catch (e: Exception) { ChatMode.STEP_BY_STEP }
-        _openRouterApiKey.value = prefs.getString("openrouter_api_key", "") ?: ""
-        _customGeminiApiKey.value = prefs.getString("gemini_api_key", "") ?: ""
+        _selectedAiProvider.value = prefsManager.loadSelectedProvider()
+        _selectedChatMode.value = prefsManager.loadSelectedChatMode()
+        _openRouterApiKey.value = prefsManager.loadOpenRouterApiKey()
+        _customGeminiApiKey.value = prefsManager.loadCustomGeminiApiKey()
 
         viewModelScope.launch {
             repository.ensureDefaultProjectsExist()
@@ -243,12 +242,12 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun saveAiPreferences() {
-        prefs.edit()
-            .putString("ai_provider", _selectedAiProvider.value.name)
-            .putString("chat_mode", _selectedChatMode.value.name)
-            .putString("openrouter_api_key", _openRouterApiKey.value)
-            .putString("gemini_api_key", _customGeminiApiKey.value)
-            .apply()
+        prefsManager.savePreferences(
+            provider = _selectedAiProvider.value,
+            chatMode = _selectedChatMode.value,
+            openRouterApiKey = _openRouterApiKey.value,
+            geminiApiKey = _customGeminiApiKey.value
+        )
     }
 
     fun selectFile(path: String) {
@@ -371,7 +370,6 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun sendDiagnosticsToAi() {
-        val projectId = _currentProjectId.value ?: return
         val currentLogs = uiState.value.diagnosticLogs
         if (currentLogs.isEmpty()) {
             _toastMessage.value = "No hay registros para enviar a la IA."
@@ -394,91 +392,46 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
         if (userPrompt.isBlank()) return
 
         viewModelScope.launch {
-            repository.addChatMessage(
-                projectId = projectId,
-                message = ChatMessageEntity(
-                    projectId = projectId,
-                    sender = "user",
-                    text = userPrompt,
-                    timestamp = System.currentTimeMillis()
-                )
-            )
-
-            val agentMsgId = repository.addChatMessage(
-                projectId = projectId,
-                message = ChatMessageEntity(
-                    projectId = projectId,
-                    sender = "agent",
-                    text = "Analizando código y diagnóstico...",
-                    timestamp = System.currentTimeMillis()
-                )
-            )
-
             _isAiLoading.value = true
 
-            val activePath = _activeFilePath.value
-            val activeContent = _editorContent.value
-            val filesList = uiState.value.files
-            val filesSummary = filesList.joinToString("\n") { f ->
-                "- ${f.path} (${f.content.length} caracteres)"
-            }
-
-            val currentProvider = _selectedAiProvider.value
-            val currentChatMode = _selectedChatMode.value
-            val openRouterKey = _openRouterApiKey.value
-            val geminiKey = _customGeminiApiKey.value
-
-            var lastTargetFile: String? = null
-            var lastProposedCode: String? = null
-
-            aiAgentService.streamUserPrompt(
-                provider = currentProvider,
-                chatMode = currentChatMode,
+            agentPromptRunner.runPromptStream(
+                projectId = projectId,
                 userPrompt = userPrompt,
-                currentFileContent = activeContent,
-                currentFilePath = activePath,
-                allFilesSummary = filesSummary,
-                openRouterApiKey = openRouterKey,
-                customGeminiApiKey = geminiKey,
-                onExecuteTool = { toolName, args ->
-                    toolExecutor.executeTool(
+                activeFilePath = _activeFilePath.value,
+                editorContent = _editorContent.value,
+                filesList = uiState.value.files,
+                currentProvider = _selectedAiProvider.value,
+                currentChatMode = _selectedChatMode.value,
+                openRouterKey = _openRouterApiKey.value,
+                geminiKey = _customGeminiApiKey.value,
+                onFileContentUpdated = { _, newContent ->
+                    _editorContent.value = newContent
+                    _savedContent.value = newContent
+                },
+                onFileSelected = { selectFile(it) },
+                onTabClosed = { closeTab(it) },
+                onAgentMessageUpdate = { msgId, text, targetPath, code ->
+                    viewModelScope.launch {
+                        repository.updateChatMessageContent(
+                            id = msgId,
+                            text = text,
+                            targetFilePath = targetPath,
+                            proposedCode = code
+                        )
+                    }
+                },
+                onAutoApplyProposedCode = { msgId, targetFile, code ->
+                    val autoMsg = ChatMessageEntity(
+                        id = msgId,
                         projectId = projectId,
-                        toolName = toolName,
-                        args = args,
-                        filesList = uiState.value.files,
-                        activeFilePath = _activeFilePath.value,
-                        onFileContentUpdated = { _, newContent ->
-                            _editorContent.value = newContent
-                            _savedContent.value = newContent
-                        },
-                        onFileSelected = { selectFile(it) },
-                        onTabClosed = { closeTab(it) }
+                        sender = "agent",
+                        text = "Autónomo",
+                        targetFilePath = targetFile,
+                        proposedCode = code
                     )
+                    applyAgentProposedCode(autoMsg)
                 }
-            ).collect { streamResult ->
-                lastTargetFile = streamResult.targetFilePath
-                lastProposedCode = streamResult.proposedCode
-
-                repository.updateChatMessageContent(
-                    id = agentMsgId,
-                    text = streamResult.explanation,
-                    targetFilePath = streamResult.targetFilePath,
-                    proposedCode = streamResult.proposedCode
-                )
-            }
-
-            // In Full Autonomous mode, automatically apply code proposal if present
-            if (currentChatMode == ChatMode.FULL_AUTONOMOUS && lastProposedCode != null) {
-                val autoMsg = ChatMessageEntity(
-                    id = agentMsgId,
-                    projectId = projectId,
-                    sender = "agent",
-                    text = "Autónomo",
-                    targetFilePath = lastTargetFile,
-                    proposedCode = lastProposedCode
-                )
-                applyAgentProposedCode(autoMsg)
-            }
+            )
 
             _isAiLoading.value = false
         }
@@ -508,6 +461,14 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             _toastMessage.value = "✨ Cambios de IA aplicados a $path"
+        }
+    }
+
+    fun clearChatHistory() {
+        val projectId = _currentProjectId.value ?: return
+        viewModelScope.launch {
+            repository.clearChatHistory(projectId)
+            _toastMessage.value = "Chat limpiado. Empezando conversación de cero."
         }
     }
 

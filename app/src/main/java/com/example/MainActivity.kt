@@ -66,6 +66,7 @@ class MainActivity : ComponentActivity() {
                         onInsertSymbol = { viewModel.insertSymbolIntoEditor(it) },
                         onSelectProvider = { viewModel.selectAiProvider(it) },
                         onSelectChatMode = { viewModel.selectChatMode(it) },
+                        onClearChat = { viewModel.clearChatHistory() },
                         onOpenSettings = { viewModel.setShowAiSettingsDialog(true) },
                         onSaveAiSettings = { provider, openRouterKey, geminiKey -> viewModel.saveAiSettings(provider, openRouterKey, geminiKey) },
                         onDismissAiSettings = { viewModel.setShowAiSettingsDialog(false) }
