@@ -226,16 +226,16 @@ class IdeRepository(
                     path = "/README.md",
                     extension = "md",
                     content = """
-                        # DevStudio IDE
+                        # 🚀 DevStudio IDE v1.0
 
-                        Proyecto web interactivo y entorno de desarrollo listo para editar y probar en tu dispositivo.
+                        Entorno de desarrollo integrado móvil polyglot para Android con soporte nativo de Kotlin, C++ y Rust.
 
-                        ## Características
-                        - 📁 Gestor de archivos en tiempo real
-                        - ✏️ Editor de código con barra rápida de símbolos
-                        - 👁️ Vista previa renderizada con servidor HTTP Rust (127.0.0.1:8080)
-                        - ⚡ Núcleo nativo C++ y servidor HTTP Rust embebido
-                        - 🤖 Asistente de Código IA integrado
+                        ## ✨ Características Principales
+                        - 📁 **Estructura de Carpetas Jerárquica y Anidada**: Crea y organiza subcarpetas y archivos a cualquier nivel de profundidad.
+                        - ✏️ **Editor de Código Nativo**: Edición ultra fluida con resaltado de sintaxis, numeración de líneas y barra rápida de símbolos.
+                        - 👁️ **Vista Previa Web Interactiva**: Servidor HTTP local en Rust corriendo en `http://127.0.0.1:8080`.
+                        - ⚡ **Núcleo Nativo Polyglot**: Motores de C++ JNI y Rust integrados directamente.
+                        - 🤖 **Asistente de Código IA**: Chat y generación de código contextual integrada.
                     """.trimIndent()
                 ),
                 ProjectFileEntity(
@@ -243,14 +243,19 @@ class IdeRepository(
                     path = "/STRUCTURE.md",
                     extension = "md",
                     content = """
-                        # Estructura de Proyecto
+                        # 📂 Estructura del Proyecto DevStudio
 
-                        - `/index.html` - Página principal HTML
-                        - `/style.css` - Estilos CSS de la interfaz
-                        - `/script.js` - Lógica JavaScript interactiva
-                        - `/Docs/Roadmap.md` - Plan de desarrollo futuro
-                        - `/Docs/AI_Context.md` - Manual de contexto para la IA
-                        - `/Docs/Agents.md` - Guía para agentes
+                        ## Archivos Raíz
+                        - `/index.html` - Documento principal HTML del proyecto Web.
+                        - `/style.css` - Hoja de estilos con variables y modo oscuro.
+                        - `/script.js` - Lógica interactiva JavaScript.
+                        - `/README.md` - Documentación general del IDE.
+                        - `/STRUCTURE.md` - Mapa jerárquico del proyecto.
+
+                        ## Directorio de Documentación (`/Docs/`)
+                        - `/Docs/Roadmap.md` - Estado de funciones y características planeadas.
+                        - `/Docs/AI_Context.md` - Contexto arquitectónico para el Asistente IA.
+                        - `/Docs/Agents.md` - Reglas de desarrollo para los agentes.
                     """.trimIndent()
                 ),
                 ProjectFileEntity(
@@ -268,11 +273,13 @@ class IdeRepository(
                     content = """
                         # 🗺️ Roadmap de DevStudio
 
-                        - [x] Soporte Polyglot (Kotlin, C++, Rust)
-                        - [x] Servidor HTTP Localhost en Rust (port 8080)
-                        - [x] Vista previa Web interactiva con apertura externa
-                        - [ ] Resaltado de sintaxis con colores dinámicos
-                        - [ ] Integración con repositorio Git remoto
+                        - [x] Soporte Polyglot (Kotlin Jetpack Compose, C++ JNI, Rust HTTP Server)
+                        - [x] Servidor HTTP Localhost en Rust (Puerto 8080)
+                        - [x] Vista previa Web interactiva en tiempo real
+                        - [x] Estructura de carpetas jerárquica y anidada sin límite de profundidad
+                        - [x] Editor de Código Nativo con numeración de líneas y resaltado de sintaxis
+                        - [x] Barra rápida de caracteres y símbolos de programación
+                        - [ ] Integración con repositorios Git remotos
                     """.trimIndent(),
                     parentPath = "/Docs"
                 ),
@@ -281,10 +288,14 @@ class IdeRepository(
                     path = "/Docs/AI_Context.md",
                     extension = "md",
                     content = """
-                        # 🤖 AI Context Manual
+                        # 🤖 AI Context & Arquitectura
 
-                        Este proyecto combina Kotlin Compose (UI), C++ JNI (Procesamiento nativo) y Rust (Servidor HTTP Localhost).
-                        Al realizar cambios, mantén la reactividad de Jetpack Compose y la compatibilidad de permisos de red local.
+                        ## Arquitectura Polyglot
+                        1. **UI Jetpack Compose**: Interfaz moderna con Material Design 3 y manejo de insets.
+                        2. **Editor Nativo**: VisualTransformation con sintaxis coloreada para HTML, CSS, JS, KT, CPP, Rust y JSON.
+                        3. **C++ Native Engine**: Procesamiento de alto rendimiento vía JNI.
+                        4. **Rust Localhost HTTP Server**: Servidor embebido escuchando en `http://127.0.0.1:8080`.
+                        5. **Room Local Database**: Persistencia reactiva de carpetas, archivos y chat de IA.
                     """.trimIndent(),
                     parentPath = "/Docs"
                 ),
@@ -293,11 +304,12 @@ class IdeRepository(
                     path = "/Docs/Agents.md",
                     extension = "md",
                     content = """
-                        # 📋 Guía para Agentes
+                        # 📋 Reglas y Guía para Agentes
 
-                        - Mantén un código limpio y modular.
-                        - Verifica la compilación con `compile_applet`.
-                        - Ofrece soluciones directamente ejecutables.
+                        1. **Respetar Arquitectura Polyglot**: Mantener la sinergia entre Kotlin, C++ JNI y Rust.
+                        2. **Diseño Material 3**: Usar la paleta de colores centralizada en `ui/theme/`.
+                        3. **Verificación de Compilación**: Ejecutar `compile_applet` tras cada cambio significativo.
+                        4. **Persistencia Room**: Asegurar que toda creación o borrado de carpetas/archivos actualice la base de datos.
                     """.trimIndent(),
                     parentPath = "/Docs"
                 )

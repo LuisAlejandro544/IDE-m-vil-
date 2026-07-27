@@ -1,6 +1,5 @@
 package com.example.ui.components
 
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -21,13 +20,15 @@ object SyntaxHighlighter {
                 "html", "htm" -> highlightHtml(code)
                 "js", "ts" -> highlightJs(code)
                 "css" -> highlightCss(code)
-                else -> { /* plain text fallback */ }
+                "kt", "java", "cpp", "c", "h", "rs" -> highlightCodeKeywords(code)
+                "json" -> highlightJson(code)
+                "md", "markdown" -> highlightMarkdown(code)
+                else -> { /* plain text */ }
             }
         }
     }
 
     private fun AnnotatedString.Builder.highlightHtml(code: String) {
-        // Tag regex: <(/?[a-zA-Z0-9]+)([^>]*)>
         val tagRegex = Regex("""<(/?[a-zA-Z0-9\-]+)""")
         tagRegex.findAll(code).forEach { match ->
             val range = match.groups[1]?.range
@@ -40,7 +41,6 @@ object SyntaxHighlighter {
             }
         }
 
-        // Attribute regex: ([a-zA-Z\-]+)=
         val attrRegex = Regex("""\b([a-zA-Z\-]+)\s*=""")
         attrRegex.findAll(code).forEach { match ->
             val range = match.groups[1]?.range
@@ -53,7 +53,6 @@ object SyntaxHighlighter {
             }
         }
 
-        // String regex: "([^"]*)"
         val stringRegex = Regex(""""([^"]*)"""")
         stringRegex.findAll(code).forEach { match ->
             addStyle(
@@ -80,7 +79,6 @@ object SyntaxHighlighter {
             }
         }
 
-        // Strings
         val stringRegex = Regex(""""([^"]*)"|'([^']*)'|`([^`]*)`""")
         stringRegex.findAll(code).forEach { match ->
             addStyle(
@@ -90,7 +88,6 @@ object SyntaxHighlighter {
             )
         }
 
-        // Single line comments
         val commentRegex = Regex("""//.*""")
         commentRegex.findAll(code).forEach { match ->
             addStyle(
@@ -102,7 +99,6 @@ object SyntaxHighlighter {
     }
 
     private fun AnnotatedString.Builder.highlightCss(code: String) {
-        // Selectors
         val selectorRegex = Regex("""([.#]?[a-zA-Z0-9\-_]+)\s*\{""")
         selectorRegex.findAll(code).forEach { match ->
             val range = match.groups[1]?.range
@@ -115,11 +111,92 @@ object SyntaxHighlighter {
             }
         }
 
-        // Comments
         val commentRegex = Regex("""/\*[\s\S]*?\*/""")
         commentRegex.findAll(code).forEach { match ->
             addStyle(
                 SpanStyle(color = SyntaxComment),
+                match.range.first,
+                match.range.last + 1
+            )
+        }
+    }
+
+    private fun AnnotatedString.Builder.highlightCodeKeywords(code: String) {
+        val keywords = listOf(
+            "val", "var", "fun", "class", "object", "interface", "import", "package",
+            "struct", "fn", "let", "mut", "pub", "use", "impl", "enum",
+            "void", "int", "char", "include", "using", "namespace", "return", "if", "else"
+        )
+        keywords.forEach { kw ->
+            val regex = Regex("""\b$kw\b""")
+            regex.findAll(code).forEach { match ->
+                addStyle(
+                    SpanStyle(color = SyntaxKeyword, fontWeight = FontWeight.Bold),
+                    match.range.first,
+                    match.range.last + 1
+                )
+            }
+        }
+
+        val stringRegex = Regex(""""([^"]*)"""")
+        stringRegex.findAll(code).forEach { match ->
+            addStyle(
+                SpanStyle(color = SyntaxString),
+                match.range.first,
+                match.range.last + 1
+            )
+        }
+
+        val commentRegex = Regex("""//.*""")
+        commentRegex.findAll(code).forEach { match ->
+            addStyle(
+                SpanStyle(color = SyntaxComment),
+                match.range.first,
+                match.range.last + 1
+            )
+        }
+    }
+
+    private fun AnnotatedString.Builder.highlightJson(code: String) {
+        val keyRegex = Regex(""""([^"]+)":""")
+        keyRegex.findAll(code).forEach { match ->
+            val range = match.groups[1]?.range
+            if (range != null) {
+                addStyle(
+                    SpanStyle(color = SyntaxTag, fontWeight = FontWeight.Bold),
+                    range.first,
+                    range.last + 1
+                )
+            }
+        }
+
+        val valueRegex = Regex(""":\s*"([^"]*)"""")
+        valueRegex.findAll(code).forEach { match ->
+            val range = match.groups[1]?.range
+            if (range != null) {
+                addStyle(
+                    SpanStyle(color = SyntaxString),
+                    range.first,
+                    range.last + 1
+                )
+            }
+        }
+    }
+
+    private fun AnnotatedString.Builder.highlightMarkdown(code: String) {
+        val headerRegex = Regex("""(?m)^#{1,6}\s+.*""")
+        headerRegex.findAll(code).forEach { match ->
+            addStyle(
+                SpanStyle(color = SyntaxKeyword, fontWeight = FontWeight.Bold),
+                match.range.first,
+                match.range.last + 1
+            )
+        }
+
+        val codeBlockRegex = Regex("""`[^`]+`""")
+        codeBlockRegex.findAll(code).forEach { match ->
+            addStyle(
+                SpanStyle(color = SyntaxString),
                 match.range.first,
                 match.range.last + 1
             )
