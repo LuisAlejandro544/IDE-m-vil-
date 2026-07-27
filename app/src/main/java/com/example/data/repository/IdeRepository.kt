@@ -254,6 +254,14 @@ class IdeRepository(
                     """.trimIndent()
                 ),
                 ProjectFileEntity(
+                    name = "Docs",
+                    path = "/Docs",
+                    extension = "folder",
+                    content = "",
+                    isDirectory = true,
+                    parentPath = "/"
+                ),
+                ProjectFileEntity(
                     name = "Roadmap.md",
                     path = "/Docs/Roadmap.md",
                     extension = "md",
@@ -265,7 +273,8 @@ class IdeRepository(
                         - [x] Vista previa Web interactiva con apertura externa
                         - [ ] Resaltado de sintaxis con colores dinámicos
                         - [ ] Integración con repositorio Git remoto
-                    """.trimIndent()
+                    """.trimIndent(),
+                    parentPath = "/Docs"
                 ),
                 ProjectFileEntity(
                     name = "AI_Context.md",
@@ -276,7 +285,8 @@ class IdeRepository(
 
                         Este proyecto combina Kotlin Compose (UI), C++ JNI (Procesamiento nativo) y Rust (Servidor HTTP Localhost).
                         Al realizar cambios, mantén la reactividad de Jetpack Compose y la compatibilidad de permisos de red local.
-                    """.trimIndent()
+                    """.trimIndent(),
+                    parentPath = "/Docs"
                 ),
                 ProjectFileEntity(
                     name = "Agents.md",
@@ -288,7 +298,8 @@ class IdeRepository(
                         - Mantén un código limpio y modular.
                         - Verifica la compilación con `compile_applet`.
                         - Ofrece soluciones directamente ejecutables.
-                    """.trimIndent()
+                    """.trimIndent(),
+                    parentPath = "/Docs"
                 )
             )
 
@@ -305,13 +316,31 @@ class IdeRepository(
         }
     }
 
-    suspend fun createFile(name: String, path: String, content: String = ""): Long {
+    suspend fun createFile(name: String, path: String, content: String = "", parentPath: String = "/"): Long {
         val ext = name.substringAfterLast('.', "txt")
+        val cleanParent = if (parentPath.endsWith("/") && parentPath != "/") parentPath.dropLast(1) else parentPath
+        val fullPath = if (path.startsWith("/")) path else if (cleanParent == "/") "/$name" else "$cleanParent/$name"
         val entity = ProjectFileEntity(
             name = name,
-            path = if (path.startsWith("/")) path else "/$path",
+            path = fullPath,
             extension = ext,
-            content = content
+            content = content,
+            isDirectory = false,
+            parentPath = cleanParent
+        )
+        return projectFileDao.insertFile(entity)
+    }
+
+    suspend fun createDirectory(name: String, parentPath: String = "/"): Long {
+        val cleanParent = if (parentPath.endsWith("/") && parentPath != "/") parentPath.dropLast(1) else parentPath
+        val fullPath = if (cleanParent == "/") "/$name" else "$cleanParent/$name"
+        val entity = ProjectFileEntity(
+            name = name,
+            path = fullPath,
+            extension = "folder",
+            content = "",
+            isDirectory = true,
+            parentPath = cleanParent
         )
         return projectFileDao.insertFile(entity)
     }
@@ -321,7 +350,14 @@ class IdeRepository(
     }
 
     suspend fun deleteFile(id: Long) {
-        projectFileDao.deleteFileById(id)
+        val file = projectFileDao.getFileById(id)
+        if (file != null) {
+            if (file.isDirectory) {
+                projectFileDao.deletePathAndChildren(file.path, "${file.path}/%")
+            } else {
+                projectFileDao.deleteFileById(id)
+            }
+        }
     }
 
     suspend fun getFileByPath(path: String): ProjectFileEntity? {

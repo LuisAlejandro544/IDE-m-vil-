@@ -150,23 +150,43 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createNewFile(fileName: String, initialContent: String = "") {
+    fun createNewFile(fileName: String, initialContent: String = "", parentPath: String = "/") {
         if (fileName.isBlank()) return
         val cleanName = fileName.trim().removePrefix("/")
-        val path = "/$cleanName"
+        val cleanParent = if (parentPath.endsWith("/") && parentPath != "/") parentPath.dropLast(1) else parentPath
+        val fullPath = if (cleanParent == "/") "/$cleanName" else "$cleanParent/$cleanName"
         viewModelScope.launch {
-            repository.createFile(cleanName, path, initialContent)
+            repository.createFile(cleanName, fullPath, initialContent, cleanParent)
             _showNewFileDialog.value = false
-            selectFile(path)
-            _toastMessage.value = "Archivo creado: $path"
+            selectFile(fullPath)
+            _toastMessage.value = "Archivo creado: $fullPath"
+        }
+    }
+
+    fun createNewFolder(folderName: String, parentPath: String = "/") {
+        if (folderName.isBlank()) return
+        val cleanName = folderName.trim().removePrefix("/")
+        val cleanParent = if (parentPath.endsWith("/") && parentPath != "/") parentPath.dropLast(1) else parentPath
+        val fullPath = if (cleanParent == "/") "/$cleanName" else "$cleanParent/$cleanName"
+        viewModelScope.launch {
+            repository.createDirectory(cleanName, cleanParent)
+            _showNewFileDialog.value = false
+            _toastMessage.value = "Carpeta creada: $fullPath"
         }
     }
 
     fun deleteFile(file: ProjectFileEntity) {
         viewModelScope.launch {
             repository.deleteFile(file.id)
-            closeTab(file.path)
-            _toastMessage.value = "Archivo eliminado: ${file.name}"
+            if (file.isDirectory) {
+                // Close any open tab that was inside this folder
+                val tabsToClose = _openTabs.value.filter { it == file.path || it.startsWith("${file.path}/") }
+                tabsToClose.forEach { closeTab(it) }
+                _toastMessage.value = "Carpeta eliminada: ${file.name}"
+            } else {
+                closeTab(file.path)
+                _toastMessage.value = "Archivo eliminado: ${file.name}"
+            }
         }
     }
 

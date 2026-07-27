@@ -36,6 +36,9 @@ interface ProjectFileDao {
     @Query("DELETE FROM project_files WHERE path = :path")
     suspend fun deleteFileByPath(path: String)
 
+    @Query("DELETE FROM project_files WHERE path = :path OR path LIKE :pathPrefix")
+    suspend fun deletePathAndChildren(path: String, pathPrefix: String)
+
     @Query("SELECT COUNT(*) FROM project_files")
     suspend fun getFileCount(): Int
 }

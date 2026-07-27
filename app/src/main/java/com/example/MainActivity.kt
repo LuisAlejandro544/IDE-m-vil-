@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
@@ -109,7 +110,8 @@ class MainActivity : ComponentActivity() {
                     onSetViewMode = { viewModel.setViewMode(it) },
                     onToggleChat = { viewModel.toggleChat() },
                     onShowNewFileDialog = { viewModel.setShowNewFileDialog(it) },
-                    onCreateFile = { name -> viewModel.createNewFile(name) },
+                    onCreateFile = { name, parentPath -> viewModel.createNewFile(name, parentPath = parentPath) },
+                    onCreateFolder = { name, parentPath -> viewModel.createNewFolder(name, parentPath = parentPath) },
                     onSendAgentPrompt = { viewModel.sendAgentPrompt(it) },
                     onApplyProposedCode = { viewModel.applyAgentProposedCode(it) },
                     onInsertSymbol = { viewModel.insertSymbolIntoEditor(it) }
@@ -130,7 +132,8 @@ fun DevStudioIdeScreen(
     onSetViewMode: (IdeViewMode) -> Unit,
     onToggleChat: () -> Unit,
     onShowNewFileDialog: (Boolean) -> Unit,
-    onCreateFile: (String) -> Unit,
+    onCreateFile: (name: String, parentPath: String) -> Unit,
+    onCreateFolder: (name: String, parentPath: String) -> Unit,
     onSendAgentPrompt: (String) -> Unit,
     onApplyProposedCode: (com.example.data.db.ChatMessageEntity) -> Unit,
     onInsertSymbol: (String) -> Unit
@@ -278,8 +281,10 @@ fun DevStudioIdeScreen(
 
     if (uiState.showNewFileDialog) {
         NewFileDialog(
+            existingFolders = uiState.files,
             onDismiss = { onShowNewFileDialog(false) },
-            onCreateFile = onCreateFile
+            onCreateFile = onCreateFile,
+            onCreateFolder = onCreateFolder
         )
     }
 }
@@ -298,6 +303,7 @@ fun IdeTopAppBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(EditorSurface)
+            .statusBarsPadding()
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
