@@ -205,21 +205,26 @@ fun AiAgentChatSheet(
                 color = LineNumberColor,
                 fontWeight = FontWeight.Bold
             )
-            val skills = listOf("🎨 UI/UX Design", "📱 Responsive Layout", "⚡ Clean Logic")
-            skills.forEach { skill ->
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(AccentBlue.copy(alpha = 0.15f))
-                        .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = skill,
-                        fontSize = 10.sp,
-                        color = AccentBlue,
-                        fontWeight = FontWeight.Medium
-                    )
+            val skills = listOf("🛠️ Tool Usage .md", "🎨 UI/UX Design", "📱 Responsive Layout", "⚡ Clean Logic")
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                items(skills) { skill ->
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(AccentBlue.copy(alpha = 0.15f))
+                            .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = skill,
+                            fontSize = 10.sp,
+                            color = AccentBlue,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
         }

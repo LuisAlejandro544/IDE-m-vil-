@@ -14,10 +14,11 @@
   - ✏️ Editar líneas exactas de código (`edit_file`).
   - ➕ Crear nuevos archivos (`create_file`).
   - 🗑️ Eliminar elementos (`delete_file`).
-- **Sistema Integrado de Skills de IA (`AiSkills.kt`)**: Inyección automática de habilidades de alto nivel sin requerir prompts extensos:
-  - 🎨 **UI/UX Design**: Estética Material Design 3, paletas cromáticas elegantes y micro-interacciones.
-  - 📱 **Responsive Layout**: Diseños fluidos Mobile-First, Flexbox/Grid, clamp() y media queries sin desbordamientos.
-  - ⚡ **Clean Logic**: Funciones puras, manejo de errores robusto, manipulación segura con ES6+ y validación de datos.
+- **Sistema Integrado de Skills de IA en Archivos `.md` Detrás de Escena (`/skills/`)**: Inyección automática de habilidades especializadas desde archivos `.md` externos (sin saturar el espacio de trabajo del usuario):
+  - 🛠️ **Tool Usage Guide (`tool_usage_guide.md`)**: Instrucciones precisas de uso de herramientas y prohibición estricta de reescritura total de archivos con `edit_file`.
+  - 🎨 **UI/UX Design (`design_ui_ux.md`)**: Estética Material Design 3, paletas cromáticas elegantes y micro-interacciones.
+  - 📱 **Responsive Layout (`responsive_layout.md`)**: Diseños fluidos Mobile-First, Flexbox/Grid, clamp() y media queries sin desbordamientos.
+  - ⚡ **Clean Logic (`clean_logic.md`)**: Funciones puras, manejo de errores robusto, manipulación segura con ES6+ y validación de datos.
 - **Servidor HTTP Localhost Integrado en Rust**: Servidor incrustado de alto rendimiento para servir la vista previa web en `http://127.0.0.1:8080`.
 - **Módulo Nativo C++**: Núcleo C++ nativo listo para procesamiento intensivo a través de JNI.
 - **Vista Previa en Vivo**: Renderizado Web en tiempo real con alternancia de modos teléfono/tablet y botón para abrir en el navegador del dispositivo.
@@ -29,7 +30,7 @@
 ## 🛠️ Stack Tecnológico
 
 - **Frontend / UI**: Kotlin, Jetpack Compose, Material Design 3.
-- **Agente IA**: Engine de streaming multimodal con Tool Calling + Inyección de Skills (`AiSkills.kt`) para Google Gemini API y OpenRouter API.
+- **Agente IA**: Engine de streaming multimodal con Tool Calling + Inyección de Skills en `.md` (`AiSkills.kt` / `/skills/`) para Google Gemini API y OpenRouter API.
 - **Editor de Código**: BasicTextField con VisualTransformation (Syntax Highlighter) + Scroll bidireccional y Line Numbers.
 - **Nativo C++**: CMake, NDK, JNI (`libdevstudio_cpp.so`).
 - **Nativo Rust**: Rust `cdylib`, JNI, `tiny_http` (`libdevstudio_server.so`).

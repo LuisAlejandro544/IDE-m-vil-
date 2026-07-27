@@ -20,11 +20,12 @@ Este documento sirve como manual de incorporación para cualquier Agente de Inte
      - `delete_file(path)`: Elimina elementos del workspace.
    - Las ejecuciones de herramientas se reflejan e interconectan en tiempo real en la UI del chat y en el editor.
 
-3. **Sistema de Skills Contextuales Integradas (`AiSkills.kt`)**:
-   - Para evitar prompts extensos y repetitivos del usuario, el sistema inyecta automáticamente en el System Instruction del Agente 3 Skills esenciales:
-     - **UI/UX Design**: Estética Material 3, tipografía con jerarquía, paleta cromática equilibrada e interacciones fluidas.
-     - **Responsive Layout**: Estrategia Mobile-First, Flexbox/Grid, clamp() y prevención de desbordamientos.
-     - **Clean Logic**: Funciones puras, JS ES6+, manejo de errores con try-catch y validación de datos.
+3. **Sistema de Skills Contextuales Integradas en Archivos `.md` (`/skills/`)**:
+   - Las habilidades se almacenan en archivos `.md` separados que funcionan por detrás y no ensucian el gestor de archivos del proyecto del usuario:
+     - **Guía de Uso de Herramientas (`tool_usage_guide.md`)**: Instruye al modelo sobre cómo usar sus 5 herramientas. **Prohibición estricta**: No se permite reescribir un archivo entero usando `edit_file`.
+     - **UI/UX Design (`design_ui_ux.md`)**: Estética Material 3, tipografía con jerarquía, paleta cromática equilibrada e interacciones fluidas.
+     - **Responsive Layout (`responsive_layout.md`)**: Estrategia Mobile-First, Flexbox/Grid, clamp() y prevención de desbordamientos.
+     - **Clean Logic (`clean_logic.md`)**: Funciones puras, JS ES6+, manejo de errores con try-catch y validación de datos.
 
 4. **Editor de Código Nativo y Coloreado de Sintaxis**:
    - `CodeEditorView.kt` utiliza un `BasicTextField` con un transformador visual (`SyntaxHighlighter.kt`) y un panel lateral con numeración de líneas sincronizado mediante scroll.

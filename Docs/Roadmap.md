@@ -22,10 +22,14 @@ Este documento define la hoja de ruta y planificación de características para 
 
 ---
 
-## 📌 Fase 3: Asistente IA con Herramientas & Skills en Tiempo Real (COMPLETADO ✅)
+## 📌 Fase 3: Asistente IA con Herramientas & Skills `.md` en Tiempo Real (COMPLETADO ✅)
 - [x] **Llamada a Herramientas (Tool Calling)**: Integración de herramientas en tiempo real para Gemini y OpenRouter.
 - [x] **Operaciones del Agente**: `get_project_structure`, `read_file`, `edit_file`, `create_file` y `delete_file`.
-- [x] **Inyección de Skills de IA (`AiSkills.kt`)**: Habilidades automáticas de Diseños UI/UX, Adaptabilidad Responsive Mobile-First y Lógica Robusta / Clean Code.
+- [x] **Sistema de Skills `.md` Detrás de Escena (`/skills/`)**:
+  - `tool_usage_guide.md`: Guía de herramientas y prohibición estricta de reescribir un archivo completo en `edit_file`.
+  - `design_ui_ux.md`: Diseños M3 y estética moderna.
+  - `responsive_layout.md`: Adaptabilidad Mobile-First y Flexbox/Grid.
+  - `clean_logic.md`: Lógica limpia, ES6+ y manejo de errores.
 - [x] **Sincronización en Tiempo Real**: Reflejo inmediato de cambios de código en la vista del editor activo y consola de herramientas del chat.
 
 ---

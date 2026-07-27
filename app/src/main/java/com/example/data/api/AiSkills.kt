@@ -2,6 +2,16 @@ package com.example.data.api
 
 object AiSkills {
 
+    val TOOL_USAGE_SKILL = """
+        🛠️ [SKILL: GUÍA DE USO DE HERRAMIENTAS Y RESTRICCIONES]
+        - Usar `get_project_structure` para explorar la jerarquía de carpetas.
+        - Usar `read_file` para inspeccionar el contenido de un archivo antes de modificarlo.
+        - Usar `edit_file` para ediciones quirúrgicas de líneas específicas. 
+          ⛔ STIRCTAMENTE PROHIBIDO: Reescribir un archivo completo usando `edit_file`. `target_content` debe ser únicamente el bloque exacto a cambiar.
+        - Usar `create_file` para crear nuevos archivos con su contenido inicial.
+        - Usar `delete_file` únicamente para eliminar un archivo o carpeta.
+    """.trimIndent()
+
     val DESIGN_SKILL = """
         🎯 [SKILL: UI/UX DESIGN & ESTÉTICA MODERNA]
         - Aplica principios de Material Design 3, jerarquía visual clara y generoso espacio negativo.
@@ -31,7 +41,9 @@ object AiSkills {
 
     fun getAllSkillsSystemPrompt(): String {
         return """
-            🚀 HABILIDADES ESPECIALIZADAS ACTIVAS (SKILLS):
+            🚀 HABILIDADES ESPECIALIZADAS ACTIVAS (SKILLS MD DETRÁS DE ESCENA):
+            
+            $TOOL_USAGE_SKILL
             
             $DESIGN_SKILL
             

@@ -7,6 +7,11 @@ A continuación se detalla la arquitectura de directorios del proyecto DevStudio
 ├── README.md                      # Descripción e instrucciones generales del proyecto
 ├── STRUCTURE.md                   # Mapeo de la estructura de archivos del repositorio
 ├── AGENTS.md                      # Resumen de reglas para el agente de desarrollo
+├── skills/                        # Archivos .md de Habilidades de IA (Cargados por detrás)
+│   ├── tool_usage_guide.md        # Guía de uso de herramientas y prohibición de reescritura total
+│   ├── design_ui_ux.md            # Guía de diseño estético y Material Design 3
+│   ├── responsive_layout.md       # Guía de maquetación adaptativa Mobile-First y Flexbox/Grid
+│   └── clean_logic.md             # Guía de lógica limpia, ES6+ y manejo de errores
 ├── Docs/                          # Documentación técnica y guías para desarrolladores e IA
 │   ├── Roadmap.md                 # Hoja de ruta y características implementadas
 │   ├── AI_Context.md              # Contexto de arquitectura y reglas para Agentes IA
@@ -14,6 +19,11 @@ A continuación se detalla la arquitectura de directorios del proyecto DevStudio
 ├── app/                           # Módulo principal de Android
 │   ├── build.gradle.kts           # Configuración de Gradle del módulo app
 │   └── src/main/
+│       ├── assets/skills/         # Archivos .md de Skills empaquetados para runtime en Android
+│       │   ├── tool_usage_guide.md
+│       │   ├── design_ui_ux.md
+│       │   ├── responsive_layout.md
+│       │   └── clean_logic.md
 │       ├── AndroidManifest.xml    # Manifiesto de Android (Permisos INTERNET y Cleartext)
 │       ├── cpp/                   # Código Fuente C++ Nativo
 │       │   ├── CMakeLists.txt     # Configuración de compilación CMake
@@ -25,7 +35,7 @@ A continuación se detalla la arquitectura de directorios del proyecto DevStudio
 │       ├── java/com/example/
 │       │   ├── MainActivity.kt    # Actividad principal y Scaffold Compose
 │       │   ├── data/              # Capa de Datos (Room DB, DAOs, Entidades, Repositorio, API)
-│       │   │   ├── api/           # AiAgentService, AiSkills (Inyección de Skills de UI, Responsive, Lógica)
+│       │   │   ├── api/           # AiAgentService, AiSkills (Carga e inyección de Skills .md)
 │       │   │   ├── db/            # AppDatabase, ProjectFileEntity, ChatMessageEntity
 │       │   │   └── repository/    # IdeRepository (Manejo de archivos y herramientas de IA)
 │       │   ├── native/            # Enlaces JNI / Interop Nativo
@@ -39,7 +49,7 @@ A continuación se detalla la arquitectura de directorios del proyecto DevStudio
 │       │       │   ├── FileManagerDrawer.kt# Árbol de archivos/carpetas jerárquico y anidado
 │       │       │   ├── NewFileDialog.kt    # Diálogo para crear archivos y carpetas
 │       │       │   ├── LivePreview.kt      # Vista previa WebView con servidor Rust
-│       │       │   ├── AiAgentChatSheet.kt # Interfaz del Asistente de IA con chips de Skills y streaming
+│       │       │   ├── AiAgentChatSheet.kt # Interfaz del Asistente de IA con chips de Skills .md y streaming
 │       │       │   ├── AiSettingsDialog.kt # Diálogo de configuración de API Keys y Proveedores
 │       │       │   └── QuickSymbolBar.kt   # Barra rápida de caracteres de programación
 │       │       └── theme/         # Sistema de diseño M3 y paleta de colores Editor
