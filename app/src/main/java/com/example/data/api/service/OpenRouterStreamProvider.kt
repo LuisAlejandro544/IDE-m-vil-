@@ -71,6 +71,8 @@ class OpenRouterStreamProvider(
 
             val responseBody = response.body ?: return@flow
 
+            val pendingToolCalls = mutableMapOf<Int, ToolCallAccumulator>()
+
             responseBody.byteStream().bufferedReader().use { reader ->
                 var line: String?
                 while (reader.readLine().also { line = it } != null) {
@@ -91,20 +93,28 @@ class OpenRouterStreamProvider(
                             if (toolCalls != null && toolCalls.length() > 0) {
                                 for (i in 0 until toolCalls.length()) {
                                     val tc = toolCalls.getJSONObject(i)
+                                    val index = tc.optInt("index", i)
+                                    val acc = pendingToolCalls.getOrPut(index) { ToolCallAccumulator() }
+
                                     val functionObj = tc.optJSONObject("function")
-                                    val fnName = functionObj?.optString("name", "") ?: ""
-                                    val fnArgsStr = functionObj?.optString("arguments", "") ?: "{}"
-
-                                    if (fnName.isNotEmpty()) {
-                                        val toolKey = "$fnName:$fnArgsStr"
-                                        if (!executedTools.contains(toolKey)) {
-                                            executedTools.add(toolKey)
-                                            val fnArgs = try { JSONObject(fnArgsStr) } catch (e: Exception) { JSONObject() }
-
-                                            val toolResult = onExecuteTool(fnName, fnArgs)
-                                            accumulated += "\n[TOOL_EXEC:$fnName:$toolResult]\n"
-                                            emit(AiContentParser.parseStreamedContent(accumulated, defaultFilePath))
+                                    if (functionObj != null) {
+                                        if (functionObj.has("name")) {
+                                            acc.name.append(functionObj.optString("name", ""))
                                         }
+                                        if (functionObj.has("arguments")) {
+                                            acc.arguments.append(functionObj.optString("arguments", ""))
+                                        }
+                                    }
+
+                                    val fnName = acc.name.toString().trim()
+                                    val argsStr = acc.arguments.toString().trim()
+                                    val parsedArgs = try { JSONObject(argsStr) } catch (e: Exception) { null }
+
+                                    if (fnName.isNotBlank() && parsedArgs != null && !acc.executed) {
+                                        acc.executed = true
+                                        val toolResult = onExecuteTool(fnName, parsedArgs)
+                                        accumulated += "\n[TOOL_EXEC:$fnName:$toolResult]\n"
+                                        emit(AiContentParser.parseStreamedContent(accumulated, defaultFilePath))
                                     }
                                 }
                             }
@@ -122,6 +132,21 @@ class OpenRouterStreamProvider(
                 }
             }
 
+            // Execute any remaining tool call that wasn't triggered during stream chunks
+            pendingToolCalls.values.forEach { acc ->
+                if (!acc.executed) {
+                    val fnName = acc.name.toString().trim()
+                    val argsStr = acc.arguments.toString().trim()
+                    if (fnName.isNotBlank()) {
+                        acc.executed = true
+                        val parsedArgs = try { JSONObject(argsStr) } catch (e: Exception) { JSONObject() }
+                        val toolResult = onExecuteTool(fnName, parsedArgs)
+                        accumulated += "\n[TOOL_EXEC:$fnName:$toolResult]\n"
+                        emit(AiContentParser.parseStreamedContent(accumulated, defaultFilePath))
+                    }
+                }
+            }
+
             if (accumulated.isBlank()) {
                 emit(AiContentParser.parseStreamedContent("No se recibió contenido de OpenRouter.", defaultFilePath))
             }
@@ -130,4 +155,10 @@ class OpenRouterStreamProvider(
             emit(AiContentParser.parseStreamedContent("❌ Excepción en streaming OpenRouter: ${e.localizedMessage}", defaultFilePath))
         }
     }
+}
+
+private class ToolCallAccumulator {
+    val name = StringBuilder()
+    val arguments = StringBuilder()
+    var executed = false
 }

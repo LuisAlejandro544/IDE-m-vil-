@@ -24,16 +24,18 @@ object AiContentParser {
             val toolKey = "embedded:$jsonStr"
 
             if (!executedTools.contains(toolKey)) {
-                executedTools.add(toolKey)
                 try {
                     val jsonObj = JSONObject(jsonStr)
                     val fnName = jsonObj.optCleanString("name")
                     val fnArgs = jsonObj.optJSONObject("args") ?: JSONObject()
 
-                    val result = onExecuteTool(fnName, fnArgs)
-                    updatedText += "\n[TOOL_EXEC:$fnName:$result]\n"
+                    if (fnName.isNotBlank()) {
+                        executedTools.add(toolKey)
+                        val result = onExecuteTool(fnName, fnArgs)
+                        updatedText += "\n[TOOL_EXEC:$fnName:$result]\n"
+                    }
                 } catch (e: Exception) {
-                    updatedText += "\n⚠️ Error al interpretar herramienta: ${e.localizedMessage}\n"
+                    // Ignore incomplete JSON during streaming
                 }
             }
         }

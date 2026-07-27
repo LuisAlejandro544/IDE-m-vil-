@@ -2,6 +2,7 @@ package com.example.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,12 +10,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,9 +29,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.TransformedText
@@ -35,10 +41,13 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.components.markdown.MarkdownRenderer
+import com.example.ui.theme.AccentBlue
 import com.example.ui.theme.EditorBackground
 import com.example.ui.theme.EditorBorder
 import com.example.ui.theme.EditorPanelHeader
 import com.example.ui.theme.LineNumberColor
+import com.example.ui.theme.SoftGreen
 
 @Composable
 fun CodeEditorView(
@@ -77,6 +86,11 @@ fun CodeEditorView(
         }
     }
 
+    var isRenderedMode by remember(filePath) {
+        mutableStateOf(extension.equals("md", ignoreCase = true) || extension.equals("markdown", ignoreCase = true))
+    }
+    val isMarkdownFile = extension.equals("md", ignoreCase = true) || extension.equals("markdown", ignoreCase = true)
+
     val verticalScrollState = rememberScrollState()
     val horizontalScrollState = rememberScrollState()
 
@@ -95,69 +109,136 @@ fun CodeEditorView(
             .fillMaxSize()
             .background(EditorBackground)
     ) {
-        // Main Code Editor Workspace
-        Row(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-        ) {
-            // Line Numbers Column
-            Column(
+        // Markdown Toggle Header Bar (if file is Markdown or user wants to render)
+        if (isMarkdownFile) {
+            Row(
                 modifier = Modifier
-                    .fillMaxHeight()
-                    .width(48.dp)
+                    .fillMaxWidth()
                     .background(EditorPanelHeader)
-                    .verticalScroll(verticalScrollState)
-                    .padding(vertical = 12.dp, horizontal = 4.dp),
-                horizontalAlignment = Alignment.End
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                for (i in 1..lineCount) {
-                    Text(
-                        text = "$i",
-                        color = LineNumberColor,
-                        fontSize = 13.sp,
-                        fontFamily = FontFamily.Monospace,
-                        lineHeight = 20.sp,
-                        textAlign = TextAlign.End,
-                        modifier = Modifier.fillMaxWidth()
+                Text(
+                    text = "📄 Documento Markdown (.md)",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AccentBlue
+                )
+
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(
+                        selected = !isRenderedMode,
+                        onClick = { isRenderedMode = false },
+                        label = { Text("✏️ Código Fuente", fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = AccentBlue,
+                            selectedLabelColor = Color.White,
+                            containerColor = EditorBackground,
+                            labelColor = LineNumberColor
+                        )
+                    )
+
+                    FilterChip(
+                        selected = isRenderedMode,
+                        onClick = { isRenderedMode = true },
+                        label = { Text("👁️ Renderizar .md", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = SoftGreen,
+                            selectedLabelColor = Color.White,
+                            containerColor = EditorBackground,
+                            labelColor = LineNumberColor
+                        )
                     )
                 }
             }
 
-            // Vertical Border Divider
             Box(
                 modifier = Modifier
-                    .fillMaxHeight()
-                    .width(1.dp)
+                    .fillMaxWidth()
+                    .height(1.dp)
                     .background(EditorBorder)
             )
+        }
 
-            // Text Input Code Area
+        // Main Editor Workspace (Rendered Markdown OR Code Editor)
+        if (isMarkdownFile && isRenderedMode) {
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxHeight()
+                    .fillMaxWidth()
                     .verticalScroll(verticalScrollState)
-                    .horizontalScroll(horizontalScrollState)
-                    .padding(horizontal = 12.dp, vertical = 12.dp)
+                    .padding(16.dp)
             ) {
-                BasicTextField(
-                    value = textFieldValue,
-                    onValueChange = { newValue ->
-                        textFieldValue = newValue
-                        onContentChange(newValue.text)
-                    },
-                    textStyle = TextStyle(
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 13.sp,
-                        fontFamily = FontFamily.Monospace,
-                        lineHeight = 20.sp
-                    ),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    visualTransformation = syntaxTransformation,
-                    keyboardOptions = KeyboardOptions.Default,
-                    modifier = Modifier.fillMaxSize()
+                com.example.ui.components.markdown.MarkdownRenderer(
+                    markdownText = textFieldValue.text,
+                    modifier = Modifier.fillMaxWidth()
                 )
+            }
+        } else {
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                // Line Numbers Column
+                Column(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(48.dp)
+                        .background(EditorPanelHeader)
+                        .verticalScroll(verticalScrollState)
+                        .padding(vertical = 12.dp, horizontal = 4.dp),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    for (i in 1..lineCount) {
+                        Text(
+                            text = "$i",
+                            color = LineNumberColor,
+                            fontSize = 13.sp,
+                            fontFamily = FontFamily.Monospace,
+                            lineHeight = 20.sp,
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+
+                // Vertical Border Divider
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(1.dp)
+                        .background(EditorBorder)
+                )
+
+                // Text Input Code Area
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .verticalScroll(verticalScrollState)
+                        .horizontalScroll(horizontalScrollState)
+                        .padding(horizontal = 12.dp, vertical = 12.dp)
+                ) {
+                    BasicTextField(
+                        value = textFieldValue,
+                        onValueChange = { newValue ->
+                            textFieldValue = newValue
+                            onContentChange(newValue.text)
+                        },
+                        textStyle = TextStyle(
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 13.sp,
+                            fontFamily = FontFamily.Monospace,
+                            lineHeight = 20.sp
+                        ),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        visualTransformation = syntaxTransformation,
+                        keyboardOptions = KeyboardOptions.Default,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
 

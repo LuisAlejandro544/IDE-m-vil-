@@ -90,11 +90,9 @@ fun ChatMessageList(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     if (parsed.cleanText.isNotBlank()) {
-                        Text(
-                            text = parsed.cleanText,
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            lineHeight = 18.sp
+                        com.example.ui.components.markdown.MarkdownRenderer(
+                            markdownText = parsed.cleanText,
+                            textColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                         )
                     }
 
@@ -213,7 +211,11 @@ private fun parseChatMessageContent(rawText: String): ParsedMessageContent {
     }
     text = tagRegex.replace(text, "")
 
-    // 2. Legacy / markdown stream format: 🛠️ **...**: `toolName`...\n> summary
+    // 2. Strip raw tool_call blocks from main visible chat text
+    val embeddedToolRegex = Regex("""```tool_call[\s\S]*?(?:```|$)""", RegexOption.IGNORE_CASE)
+    text = embeddedToolRegex.replace(text, "")
+
+    // 3. Legacy / markdown stream format: 🛠️ **...**: `toolName`...\n> summary
     val legacyRegex = Regex("""(?:🛠️\s*)?\*\*(?:Ejecutando herramienta|Herramienta|Executing tool)[^*]*\*\*:?\s*`([^`]+)`[^\n]*\n?>?\s*([^\n]+)?""", RegexOption.IGNORE_CASE)
     legacyRegex.findAll(text).forEach { match ->
         val name = match.groupValues.getOrNull(1)?.trim() ?: ""

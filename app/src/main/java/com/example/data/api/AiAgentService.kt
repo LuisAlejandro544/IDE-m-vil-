@@ -36,11 +36,18 @@ class AiAgentService {
     ): Flow<StreamResult> = flow {
         val modeInstruction = when (chatMode) {
             ChatMode.PLANNING -> """
-                ⚠️ MODO ACTIVO: 💬 CHAT Y PLANIFICACIÓN.
-                - Tu objetivo es orientar al usuario, explicar la arquitectura del proyecto, dar ideas y analizar la estructura.
-                - PROHIBIDO realizar cambios en el código o invocar herramientas de modificación de archivos (`edit_file`, `create_file`, `delete_file`).
-                - Puedes consultar la estructura con `get_project_structure()` o `read_file()`.
-                - Si el usuario solicita modificar archivos, explica el plan de acción y sugiérele cambiar al modo 'Paso a paso' o 'Código completo'.
+                ⚠️ MODO ACTIVO: 💬 CHAT Y PLANIFICACIÓN DE ARQUITECTURA.
+                - Tu objetivo es orientar al usuario y diseñar un PLAN TÉCNICO EXCLUSIVAMENTE en formato de archivo Markdown (.md).
+                - Causa un impacto estructurando tu propuesta exactamente como un archivo Markdown listo para guardar (ej: `### ARCHIVO: /PLAN.md` o `### ARCHIVO: /Docs/PLAN.md`).
+                - Incluye las siguientes secciones en el archivo .md:
+                  1. # Plan de Desarrollo de la Aplicación
+                  2. ## 🏗️ Arquitectura y Stack
+                  3. ## 📁 Estructura de Archivos
+                  4. ## ⚙️ Modelo de Datos y Lógica
+                  5. ## 📋 Lista de Tareas (- [ ] Tarea 1, - [ ] Tarea 2...)
+                  6. ## 🚀 Siguientes Pasos
+                - Usa marcas de formato Markdown explícitas (`# Encabezados`, `**texto en negrita**`, `*cursiva*`, `- [ ] casillas de verificación`, ````bloques de código````).
+                - No ejecutes directamente herramientas de edición de archivos de código fuente, pero propón el archivo `/PLAN.md` o `/Docs/PLAN.md` para que el usuario pueda revisarlo, renderizarlo y aplicarlo en su proyecto.
             """.trimIndent()
 
             ChatMode.STEP_BY_STEP -> """

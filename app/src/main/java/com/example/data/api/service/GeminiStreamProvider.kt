@@ -95,7 +95,7 @@ class GeminiStreamProvider(
                                         val fnArgs = funcCall.optJSONObject("args") ?: JSONObject()
                                         val toolKey = "$fnName:$fnArgs"
 
-                                        if (!executedTools.contains(toolKey)) {
+                                        if (fnName.isNotBlank() && !executedTools.contains(toolKey)) {
                                             executedTools.add(toolKey)
                                             val toolResult = onExecuteTool(fnName, fnArgs)
                                             accumulated += "\n[TOOL_EXEC:$fnName:$toolResult]\n"
