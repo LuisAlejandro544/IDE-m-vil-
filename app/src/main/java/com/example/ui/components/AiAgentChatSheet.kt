@@ -54,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.api.AiProvider
+import com.example.data.api.ChatMode
 import com.example.data.db.ChatMessageEntity
 import com.example.ui.theme.AccentBlue
 import com.example.ui.theme.EditorBackground
@@ -68,8 +69,10 @@ fun AiAgentChatSheet(
     messages: List<ChatMessageEntity>,
     isAiLoading: Boolean,
     selectedProvider: AiProvider,
+    selectedChatMode: ChatMode = ChatMode.STEP_BY_STEP,
     openRouterApiKey: String,
     onSelectProvider: (AiProvider) -> Unit,
+    onSelectChatMode: (ChatMode) -> Unit = {},
     onOpenSettings: () -> Unit,
     onSendPrompt: (String) -> Unit,
     onApplyProposedCode: (ChatMessageEntity) -> Unit,
@@ -120,13 +123,13 @@ fun AiAgentChatSheet(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Agente de Código IA",
+                    text = "Agente Director & Sub-Agentes",
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = if (isAiLoading) "⚡ Transmitiendo en tiempo real..." else "Modo: ${selectedProvider.providerBadge}",
+                    text = if (isAiLoading) "⚡ Agentes trabajando..." else "${selectedChatMode.iconEmoji} Modo ${selectedChatMode.displayName} • ${selectedProvider.displayName}",
                     fontSize = 11.sp,
                     color = if (isAiLoading) AccentBlue else SoftGreen,
                     fontWeight = FontWeight.SemiBold
@@ -150,31 +153,31 @@ fun AiAgentChatSheet(
             }
         }
 
-        // Mode Selector Bar (Gemini vs OpenRouter)
+        // Mode Selector Bar (Chat vs Paso a Paso vs Código Completo)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(EditorBackground)
                 .border(1.dp, EditorBorder)
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(
-                text = "Modelo:",
+                text = "Modo:",
                 fontSize = 11.sp,
                 color = LineNumberColor,
                 fontWeight = FontWeight.Bold
             )
 
-            AiProvider.values().forEach { provider ->
-                val isSelected = provider == selectedProvider
+            ChatMode.values().forEach { mode ->
+                val isSelected = mode == selectedChatMode
                 FilterChip(
                     selected = isSelected,
-                    onClick = { onSelectProvider(provider) },
+                    onClick = { onSelectChatMode(mode) },
                     label = {
                         Text(
-                            text = provider.displayName,
+                            text = "${mode.iconEmoji} ${mode.displayName}",
                             fontSize = 11.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                         )
@@ -188,6 +191,66 @@ fun AiAgentChatSheet(
                     modifier = Modifier.height(28.dp)
                 )
             }
+        }
+
+        // Active Mode Description Banner
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(AccentBlue.copy(alpha = 0.08f))
+                .padding(horizontal = 12.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = "${selectedChatMode.iconEmoji} ${selectedChatMode.description}",
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium
+            )
+        }
+
+        // Provider Selector Bar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(EditorPanelHeader.copy(alpha = 0.5f))
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = "Modelo:",
+                fontSize = 10.sp,
+                color = LineNumberColor,
+                fontWeight = FontWeight.Bold
+            )
+
+            AiProvider.values().forEach { provider ->
+                val isSelected = provider == selectedProvider
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (isSelected) AccentBlue else EditorBackground)
+                        .border(1.dp, if (isSelected) AccentBlue else EditorBorder, RoundedCornerShape(4.dp))
+                        .clickable { onSelectProvider(provider) }
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = provider.displayName,
+                        fontSize = 10.sp,
+                        color = if (isSelected) EditorBackground else MaterialTheme.colorScheme.onSurface,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Text(
+                text = "Sub-Agentes: 🏗️ 🎨 ⚡ 🛡️",
+                fontSize = 10.sp,
+                color = AccentBlue,
+                fontWeight = FontWeight.SemiBold
+            )
         }
 
         // Active Skills Bar

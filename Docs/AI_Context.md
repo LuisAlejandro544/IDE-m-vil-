@@ -11,14 +11,24 @@ Este documento sirve como manual de incorporación para cualquier Agente de Inte
    - **C++ Native Core**: El directorio `app/src/main/cpp/` contiene librerías compartidas C++ invocadas mediante JNI (`CppEngine.kt`).
    - **Rust Embedded HTTP Server**: El directorio `app/src/main/rust/devstudio_server/` aloja el servidor de pruebas HTTP en Rust invocado desde `RustHttpServer.kt`.
 
-2. **Herramientas de Agente IA en Tiempo Real (Tool Calling)**:
-   - Los modelos de IA (Google Gemini 3.5 Flash u OpenRouter Ling 3.0 Flash) tienen acceso a herramientas integradas en tiempo real:
+2. **Herramientas de Agente IA en Tiempo Real (Tool Calling) & Modos de Chat**:
+   - **Agente Director & 4 Sub-Agentes Especializados**:
+     - 👔 **Agente Director**: Coordina el flujo general, atiende al usuario y dirige el trabajo.
+     - 🏗️ **Agente Arquitecto**: Diseña la jerarquía de archivos y módulos.
+     - 🎨 **Agente Frontend & UI**: Encargado de HTML, CSS, M3 y diseño.
+     - ⚡ **Agente Lógica & Backend**: Desarrolla JavaScript, APIs y Servidor.
+     - 🛡️ **Agente QA & Linter**: Valida sintaxis, diagnósticos y errores.
+   - **Tres Modos de Interacción Seleccionables (`ChatMode`)**:
+     1. 💬 **Chat (Planificación)**: Para estructurar el proyecto, analizar código y dar ideas sin realizar cambios en archivos.
+     2. 🐾 **Código Paso a Paso**: La IA propone cambios detallados especificando el sub-agente asignado y requiriendo confirmación del usuario mediante un botón 'Aceptar / Aplicar Cambios'.
+     3. 🚀 **Código Completo (Autónomo)**: La IA ejecuta cambios de forma automática en tiempo real directamente sobre los archivos utilizando las herramientas nativas.
+   - **Herramientas Disponibles**:
      - `get_project_structure()`: Obtiene el árbol completo de directorios y archivos.
      - `read_file(path)`: Lee el contenido de cualquier archivo en el proyecto.
      - `edit_file(path, target_content, replacement_content)`: Modifica líneas exactas de código en caliente.
      - `create_file(path, content)`: Crea nuevos archivos y carpetas.
      - `delete_file(path)`: Elimina elementos del workspace.
-   - Las ejecuciones de herramientas se reflejan e interconectan en tiempo real en la UI del chat y en el editor.
+     - `get_diagnostics()`: Consulta los registros de la Consola de Diagnóstico en Vivo y errores del Linter.
 
 3. **Sistema de Skills Contextuales Integradas en Archivos `.md` (`/skills/`)**:
    - Las habilidades se almacenan en archivos `.md` separados que funcionan por detrás y no ensucian el gestor de archivos del proyecto del usuario:
@@ -35,8 +45,9 @@ Este documento sirve como manual de incorporación para cualquier Agente de Inte
    - La entidad `ProjectFileEntity` gestiona la propiedad `isDirectory: Boolean` y la ruta contenedora `parentPath: String`.
    - La función recursiva `buildFlatTree` en `FileManagerDrawer.kt` renderiza el árbol de directorios con sangría de profundidad (`depth`) y estado de desplegado (`expandedFolders`).
 
-6. **Servidor HTTP Localhost y Vista Previa**:
-   - El servidor de vista previa corre en `http://127.0.0.1:8080`.
+6. **Servidor HTTP Localhost y Vista Previa Multipágina**:
+   - El servidor de vista previa corre en `http://127.0.0.1:8080` utilizando `RustHttpServer.kt`.
+   - `LivePreviewView.kt` implementa un navegador Web completo con soporte para múltiples páginas HTML (`index.html`, `about.html`, etc.), botones de navegación (Atrás, Adelante, Recargar), barra de dirección URL en tiempo real y chips selector de archivos HTML.
    - `android:usesCleartextTraffic="true"` debe permanecer activo en `AndroidManifest.xml` para permitir conexiones HTTP locales sin TLS en el WebView.
 
 7. **Persistencia**:

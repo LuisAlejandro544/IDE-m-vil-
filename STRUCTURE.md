@@ -33,25 +33,44 @@ A continuación se detalla la arquitectura de directorios del proyecto DevStudio
 │       │       ├── Cargo.toml     # Dependencias de Rust
 │       │       └── src/lib.rs     # Servidor HTTP Localhost JNI en Rust
 │       ├── java/com/example/
-│       │   ├── MainActivity.kt    # Actividad principal y Scaffold Compose
+│       │   ├── MainActivity.kt    # Punto de entrada Activity liviano y temas
 │       │   ├── data/              # Capa de Datos (Room DB, DAOs, Entidades, Repositorio, API)
-│       │   │   ├── api/           # AiAgentService, AiSkills (Carga e inyección de Skills .md)
-│       │   │   ├── db/            # AppDatabase, ProjectFileEntity, ChatMessageEntity
-│       │   │   └── repository/    # IdeRepository (Manejo de archivos y herramientas de IA)
+│       │   │   ├── api/           # API de Inteligencia Artificial y Skills
+│       │   │   │   ├── AiAgentService.kt   # Servicio de streaming para Gemini y OpenRouter
+│       │   │   │   ├── AiAgentModels.kt   # Modelos y Enums (AiProvider, StreamResult)
+│       │   │   │   ├── ToolSchemaBuilder.kt# Generador de declaraciones de Function Calling JSON
+│       │   │   │   └── AiSkills.kt        # Carga e inyección de habilidades .md
+│       │   │   ├── db/            # Room Database (AppDatabase, DAOs y Entidades)
+│       │   │   └── repository/    # Repositorio modular
+│       │   │       ├── IdeRepository.kt   # Orquestador principal de repositorio
+│       │   │       └── delegate/          # Delegados especializados de datos
+│       │   │           ├── ProjectTemplateDelegate.kt# Plantillas de proyectos (Web, Compose, Rust, C++)
+│       │   │           ├── LinterEngineDelegate.kt   # Análisis de linter y consola diagnóstica
+│       │   │           ├── FileOperationsDelegate.kt # Operaciones CRUD y edición por coincidencias
+│       │   │           └── ChatOperationsDelegate.kt # Historial de mensajes de chat
 │       │   ├── native/            # Enlaces JNI / Interop Nativo
 │       │   │   ├── CppEngine.kt   # Interfaz Kotlin para el motor C++
 │       │   │   └── RustHttpServer.kt # Interfaz Kotlin para el Servidor HTTP Rust
 │       │   └── ui/                # Componentes de Interfaz con Jetpack Compose
-│       │       ├── IdeViewModel.kt # ViewModel principal del IDE (Mapeo de Tool Calls y Skills)
-│       │       ├── components/    # Componentes modulares
+│       │       ├── IdeViewModel.kt # ViewModel principal modularizado
+│       │       ├── state/         # Estados de UI desacoplados
+│       │       │   └── IdeUiState.kt # Modelos de estado (IdeUiState, IdeViewMode, etc.)
+│       │       ├── delegate/      # Delegados de lógica de UI
+│       │       │   └── AgentToolExecutor.kt # Ejecutor de herramientas en tiempo real para el agente IA
+│       │       ├── components/    # Componentes modulares Compose
+│       │       │   ├── DevStudioIdeScreen.kt# Pantalla principal del IDE
+│       │       │   ├── IdeTopAppBar.kt     # Barra de herramientas superior
+│       │       │   ├── OpenTabsRow.kt      # Barra de pestañas abiertas
 │       │       │   ├── CodeEditorView.kt   # Editor de código nativo con scroll y numeración
 │       │       │   ├── SyntaxHighlighter.kt# Motor de coloreado de sintaxis
-│       │       │   ├── FileManagerDrawer.kt# Árbol de archivos/carpetas jerárquico y anidado
+│       │       │   ├── FileManagerDrawer.kt# Árbol de archivos/carpetas jerárquico
 │       │       │   ├── NewFileDialog.kt    # Diálogo para crear archivos y carpetas
-│       │       │   ├── LivePreview.kt      # Vista previa WebView con servidor Rust
-│       │       │   ├── AiAgentChatSheet.kt # Interfaz del Asistente de IA con chips de Skills .md y streaming
-│       │       │   ├── AiSettingsDialog.kt # Diálogo de configuración de API Keys y Proveedores
-│       │       │   └── QuickSymbolBar.kt   # Barra rápida de caracteres de programación
+│       │       │   ├── LivePreviewView.kt  # Vista previa interactiva con servidor HTTP
+│       │       │   ├── DiagnosticConsoleView.kt # Consola de diagnósticos y registros del linter
+│       │       │   ├── WorkspaceScreen.kt  # Pantalla de selección y creación de proyectos
+│       │       │   ├── AiAgentChatSheet.kt # Interfaz del Asistente de IA con streaming
+│       │       │   ├── AiSettingsDialog.kt # Diálogo de configuración de API Keys
+│       │       │   └── QuickSymbolBar.kt   # Barra rápida de símbolos para teclado móvil
 │       │       └── theme/         # Sistema de diseño M3 y paleta de colores Editor
 │       └── res/                   # Recursos visuales, valores y cadenas XML
 ```

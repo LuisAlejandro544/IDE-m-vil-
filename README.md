@@ -8,20 +8,18 @@
 
 - **Gestor de Archivos con Estructura Jerárquica y Anidada**: Soporte para creación de carpetas, subcarpetas e inserción de archivos en cualquier nivel o en la raíz.
 - **Editor de Código Nativo**: Editor ultra fluido desarrollado en Jetpack Compose con numeración de líneas, desplazamiento bidireccional y resaltado de sintaxis (HTML, CSS, JavaScript, Markdown, JSON, Kotlin, C++, Rust).
-- **Asistente IA con Llamada a Herramientas en Tiempo Real (Tool Calling)**: Soporte multi-modelo para **Google Gemini 3.5 Flash** y **OpenRouter (Ling 3.0 Flash)**. El agente puede:
-  - 🛠️ Consultar la estructura del proyecto (`get_project_structure`).
-  - 📄 Leer cualquier archivo (`read_file`).
-  - ✏️ Editar líneas exactas de código (`edit_file`).
-  - ➕ Crear nuevos archivos (`create_file`).
-  - 🗑️ Eliminar elementos (`delete_file`).
+- **Agente IA Director & Sub-Agentes con 3 Modos de Chat**:
+  - 👔 **Agente Director**: Atiende al usuario y supervisa a 4 Sub-Agentes especializados (🏗️ Arquitecto, 🎨 Frontend, ⚡ Lógica/Backend, 🛡️ QA).
+  - 💬 **Modo Chat (Planificación)**: Diseñado para idear la estructura del proyecto y resolver dudas sin modificar código.
+  - 🐾 **Modo Paso a Paso**: Los sub-agentes proponen los cambios de código paso a paso requiriendo confirmación del usuario.
+  - 🚀 **Modo Código Completo (Autónomo)**: Ejecución 100% automática de herramientas e implementación de código en tiempo real.
+  - 🛠️ **Herramientas Disponibles**: Consultar estructura (`get_project_structure`), leer archivos (`read_file`), editar líneas exactas (`edit_file`), crear archivos (`create_file`), eliminar (`delete_file`) y consultar diagnósticos (`get_diagnostics`).
 - **Sistema Integrado de Skills de IA en Archivos `.md` Detrás de Escena (`/skills/`)**: Inyección automática de habilidades especializadas desde archivos `.md` externos (sin saturar el espacio de trabajo del usuario):
   - 🛠️ **Tool Usage Guide (`tool_usage_guide.md`)**: Instrucciones precisas de uso de herramientas y prohibición estricta de reescritura total de archivos con `edit_file`.
   - 🎨 **UI/UX Design (`design_ui_ux.md`)**: Estética Material Design 3, paletas cromáticas elegantes y micro-interacciones.
   - 📱 **Responsive Layout (`responsive_layout.md`)**: Diseños fluidos Mobile-First, Flexbox/Grid, clamp() y media queries sin desbordamientos.
   - ⚡ **Clean Logic (`clean_logic.md`)**: Funciones puras, manejo de errores robusto, manipulación segura con ES6+ y validación de datos.
-- **Servidor HTTP Localhost Integrado en Rust**: Servidor incrustado de alto rendimiento para servir la vista previa web en `http://127.0.0.1:8080`.
-- **Módulo Nativo C++**: Núcleo C++ nativo listo para procesamiento intensivo a través de JNI.
-- **Vista Previa en Vivo**: Renderizado Web en tiempo real con alternancia de modos teléfono/tablet y botón para abrir en el navegador del dispositivo.
+- **Vista Previa Web Multipágina y Servidor Rust**: Renderizado Web en tiempo real con servidor HTTP local Rust (`127.0.0.1:8080`), navegación multipágina (Atrás, Adelante, Recargar, Barra de dirección URL activa y Selector rápido de archivos HTML como `index.html`, `about.html`), alternancia de modos teléfono/tablet y acceso externo en el navegador del dispositivo.
 - **Barra de Símbolos Rápidos**: Teclado auxiliar optimizado para programación táctil (`<`, `>`, `{`, `}`, `(`, `)`, `;`, `=`, `/`, `TAB`).
 - **Persistencia Local con Room**: Base de datos SQLite reactiva con soporte jerárquico (`parentPath`) para almacenamiento seguro de carpetas y archivos.
 

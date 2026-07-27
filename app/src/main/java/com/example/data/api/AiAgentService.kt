@@ -9,36 +9,8 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
-
-enum class AiProvider(
-    val id: String,
-    val displayName: String,
-    val modelName: String,
-    val providerBadge: String
-) {
-    GEMINI(
-        id = "gemini",
-        displayName = "Google Gemini",
-        modelName = "gemini-3.5-flash",
-        providerBadge = "Gemini 3.5 Flash + Tools"
-    ),
-    OPENROUTER(
-        id = "openrouter",
-        displayName = "OpenRouter AI",
-        modelName = "inclusionai/ling-3.0-flash:free",
-        providerBadge = "Ling 3.0 Flash + Tools"
-    )
-}
-
-data class StreamResult(
-    val fullText: String,
-    val explanation: String,
-    val targetFilePath: String?,
-    val proposedCode: String?
-)
 
 class AiAgentService {
 
@@ -52,6 +24,7 @@ class AiAgentService {
 
     fun streamUserPrompt(
         provider: AiProvider,
+        chatMode: ChatMode = ChatMode.STEP_BY_STEP,
         userPrompt: String,
         currentFileContent: String?,
         currentFilePath: String?,
@@ -60,9 +33,39 @@ class AiAgentService {
         customGeminiApiKey: String,
         onExecuteTool: suspend (toolName: String, args: JSONObject) -> String
     ): Flow<StreamResult> = flow {
+        val modeInstruction = when (chatMode) {
+            ChatMode.PLANNING -> """
+                ⚠️ MODO ACTIVO: 💬 CHAT Y PLANIFICACIÓN.
+                - Tu objetivo es orientar al usuario, explicar la arquitectura del proyecto, dar ideas y analizar la estructura.
+                - PROHIBIDO realizar cambios en el código o invocar herramientas de modificación de archivos (`edit_file`, `create_file`, `delete_file`).
+                - Puedes consultar la estructura con `get_project_structure()` o `read_file()`.
+                - Si el usuario solicita modificar archivos, explica el plan de acción y sugiérele cambiar al modo 'Paso a paso' o 'Código completo'.
+            """.trimIndent()
+
+            ChatMode.STEP_BY_STEP -> """
+                ⚠️ MODO ACTIVO: 🐾 CÓDIGO PASO A PASO (Supervisado por el Agente Director).
+                - Eres el AGENTE DIRECTOR coordinando 4 Sub-Agentes especializados:
+                  1. 🏗️ Agente Arquitecto (Estructura y Módulos)
+                  2. 🎨 Agente Frontend & UI (HTML, CSS, Estética M3)
+                  3. ⚡ Agente Lógica & Backend (JavaScript, APIS, Server)
+                  4. 🛡️ Agente QA & Linter (Validaciones y Diagnósticos)
+                - Explica qué Sub-Agente ejecuta cada tarea.
+                - Presenta la propuesta de código indicando claramente la ruta del archivo (`### ARCHIVO: /ruta/archivo.ext`) para que el usuario lo revise y confirme presionando el botón 'Aceptar / Aplicar Cambios'.
+                - Si requiere invocar herramientas automáticas, solicita confirmación.
+            """.trimIndent()
+
+            ChatMode.FULL_AUTONOMOUS -> """
+                ⚠️ MODO ACTIVO: 🚀 CÓDIGO COMPLETO (AUTÓNOMO).
+                - Eres el AGENTE DIRECTOR y junto con tus 4 Sub-Agentes (🏗️ Arquitecto, 🎨 Frontend, ⚡ Lógica, 🛡️ QA) tienes autorización completa para ejecutar cambios directamente.
+                - INVOCA INMEDIATAMENTE las herramientas necesarias (`edit_file`, `create_file`, `delete_file`, etc.) mediante bloques `tool_call` para aplicar todos los cambios requeridos en el proyecto en tiempo real.
+            """.trimIndent()
+        }
+
         val systemInstruction = """
-            Eres un Agente de Inteligencia Artificial Avanzado para el IDE móvil DevStudio.
-            Tienes acceso a HERRAMIENTAS en tiempo real para modificar y consultar la estructura del proyecto directamente.
+            Eres el AGENTE DIRECTOR DE CÓDIGO IA para el IDE móvil DevStudio.
+            Coordinas las tareas del proyecto apoyándote en 4 Sub-Agentes especializados detras de escena.
+
+            $modeInstruction
 
             HERRAMIENTAS DISPONIBLES:
             1. get_project_structure() -> Devuelve el árbol completo de archivos y carpetas del proyecto.
@@ -73,13 +76,11 @@ class AiAgentService {
             6. get_diagnostics() -> Consulta los registros de la Consola de Diagnóstico en Vivo y errores del Linter.
 
             INSTRUCCIONES DE USO DE HERRAMIENTAS:
-            - Si el usuario te pide crear, editar o eliminar un archivo, INVOCA directamente la herramienta correspondiente.
             - Puedes invocar herramientas escribiendo en tu respuesta el siguiente bloque JSON:
             ```tool_call
             {"name": "nombre_herramienta", "args": {"path": "/index.html", ...}}
             ```
-            - También puedes responder con explicaciones claras y código propuesto en bloques de código markdown cuando sea oportuno.
-            - Explicación breve en español sobre tus acciones.
+            - Explicación clara en español sobre tus acciones y las de tus Sub-Agentes.
 
             ${AiSkills.getAllSkillsSystemPrompt()}
         """.trimIndent()
@@ -134,148 +135,6 @@ class AiAgentService {
         }
     }.flowOn(Dispatchers.IO)
 
-    private fun buildGeminiToolsJson(): JSONArray {
-        return JSONArray().apply {
-            put(JSONObject().apply {
-                put("functionDeclarations", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("name", "get_project_structure")
-                        put("description", "Obtiene el árbol completo de carpetas y archivos en el proyecto")
-                    })
-                    put(JSONObject().apply {
-                        put("name", "read_file")
-                        put("description", "Lee el contenido de un archivo del proyecto")
-                        put("parameters", JSONObject().apply {
-                            put("type", "OBJECT")
-                            put("properties", JSONObject().apply {
-                                put("path", JSONObject().put("type", "STRING").put("description", "Ruta del archivo, ej: /index.html"))
-                            })
-                            put("required", JSONArray().put("path"))
-                        })
-                    })
-                    put(JSONObject().apply {
-                        put("name", "edit_file")
-                        put("description", "Edita un archivo reemplazando target_content por replacement_content")
-                        put("parameters", JSONObject().apply {
-                            put("type", "OBJECT")
-                            put("properties", JSONObject().apply {
-                                put("path", JSONObject().put("type", "STRING").put("description", "Ruta del archivo"))
-                                put("target_content", JSONObject().put("type", "STRING").put("description", "Texto exacto a reemplazar"))
-                                put("replacement_content", JSONObject().put("type", "STRING").put("description", "Nuevo texto reemplazo"))
-                            })
-                            put("required", JSONArray().put("path").put("target_content").put("replacement_content"))
-                        })
-                    })
-                    put(JSONObject().apply {
-                        put("name", "create_file")
-                        put("description", "Crea un nuevo archivo con el contenido dado")
-                        put("parameters", JSONObject().apply {
-                            put("type", "OBJECT")
-                            put("properties", JSONObject().apply {
-                                put("path", JSONObject().put("type", "STRING").put("description", "Ruta del nuevo archivo"))
-                                put("content", JSONObject().put("type", "STRING").put("description", "Contenido inicial del archivo"))
-                            })
-                            put("required", JSONArray().put("path").put("content"))
-                        })
-                    })
-                    put(JSONObject().apply {
-                        put("name", "delete_file")
-                        put("description", "Elimina un archivo o carpeta")
-                        put("parameters", JSONObject().apply {
-                            put("type", "OBJECT")
-                            put("properties", JSONObject().apply {
-                                put("path", JSONObject().put("type", "STRING").put("description", "Ruta a eliminar"))
-                            })
-                            put("required", JSONArray().put("path"))
-                        })
-                    })
-                    put(JSONObject().apply {
-                        put("name", "get_diagnostics")
-                        put("description", "Obtiene los logs y errores de sintaxis del Linter y Consola de Diagnóstico en Vivo")
-                    })
-                })
-            })
-        }
-    }
-
-    private fun buildOpenRouterToolsJson(): JSONArray {
-        return JSONArray().apply {
-            put(JSONObject().apply {
-                put("type", "function")
-                put("function", JSONObject().apply {
-                    put("name", "get_project_structure")
-                    put("description", "Obtiene la lista de todos los archivos y carpetas del proyecto")
-                })
-            })
-            put(JSONObject().apply {
-                put("type", "function")
-                put("function", JSONObject().apply {
-                    put("name", "read_file")
-                    put("description", "Lee el contenido de un archivo del proyecto")
-                    put("parameters", JSONObject().apply {
-                        put("type", "object")
-                        put("properties", JSONObject().apply {
-                            put("path", JSONObject().put("type", "string"))
-                        })
-                        put("required", JSONArray().put("path"))
-                    })
-                })
-            })
-            put(JSONObject().apply {
-                put("type", "function")
-                put("function", JSONObject().apply {
-                    put("name", "edit_file")
-                    put("description", "Edita un archivo reemplazando target_content por replacement_content")
-                    put("parameters", JSONObject().apply {
-                        put("type", "object")
-                        put("properties", JSONObject().apply {
-                            put("path", JSONObject().put("type", "string"))
-                            put("target_content", JSONObject().put("type", "string"))
-                            put("replacement_content", JSONObject().put("type", "string"))
-                        })
-                        put("required", JSONArray().put("path").put("target_content").put("replacement_content"))
-                    })
-                })
-            })
-            put(JSONObject().apply {
-                put("type", "function")
-                put("function", JSONObject().apply {
-                    put("name", "create_file")
-                    put("description", "Crea un nuevo archivo con contenido")
-                    put("parameters", JSONObject().apply {
-                        put("type", "object")
-                        put("properties", JSONObject().apply {
-                            put("path", JSONObject().put("type", "string"))
-                            put("content", JSONObject().put("type", "string"))
-                        })
-                        put("required", JSONArray().put("path").put("content"))
-                    })
-                })
-            })
-            put(JSONObject().apply {
-                put("type", "function")
-                put("function", JSONObject().apply {
-                    put("name", "delete_file")
-                    put("description", "Elimina un archivo o carpeta")
-                    put("parameters", JSONObject().apply {
-                        put("type", "object")
-                        put("properties", JSONObject().apply {
-                            put("path", JSONObject().put("type", "string"))
-                        })
-                        put("required", JSONArray().put("path"))
-                    })
-                })
-            })
-            put(JSONObject().apply {
-                put("type", "function")
-                put("function", JSONObject().apply {
-                    put("name", "get_diagnostics")
-                    put("description", "Obtiene los logs y errores del Linter y Consola de Diagnóstico en Vivo")
-                })
-            })
-        }
-    }
-
     private fun streamGemini(
         apiKey: String,
         systemInstruction: String,
@@ -291,14 +150,14 @@ class AiAgentService {
 
             val requestJson = JSONObject().apply {
                 put("systemInstruction", JSONObject().apply {
-                    put("parts", JSONArray().put(JSONObject().put("text", systemInstruction)))
+                    put("parts", org.json.JSONArray().put(JSONObject().put("text", systemInstruction)))
                 })
-                put("contents", JSONArray().put(
+                put("contents", org.json.JSONArray().put(
                     JSONObject().apply {
-                        put("parts", JSONArray().put(JSONObject().put("text", promptText)))
+                        put("parts", org.json.JSONArray().put(JSONObject().put("text", promptText)))
                     }
                 ))
-                put("tools", buildGeminiToolsJson())
+                put("tools", ToolSchemaBuilder.buildGeminiToolsJson())
                 put("generationConfig", JSONObject().apply {
                     put("temperature", 0.3)
                 })
@@ -349,7 +208,6 @@ class AiAgentService {
                                 for (i in 0 until parts.length()) {
                                     val part = parts.getJSONObject(i)
 
-                                    // Check Function Call in Gemini API candidate
                                     val funcCall = part.optJSONObject("functionCall")
                                     if (funcCall != null) {
                                         val fnName = funcCall.optString("name")
@@ -377,7 +235,7 @@ class AiAgentService {
                             }
                         }
                     } catch (e: Exception) {
-                        // Ignore unparseable partial array boundary lines
+                        // Skip malformed streaming chunks
                     }
                 }
             }
@@ -406,7 +264,7 @@ class AiAgentService {
 
             val requestJson = JSONObject().apply {
                 put("model", "inclusionai/ling-3.0-flash:free")
-                put("messages", JSONArray().apply {
+                put("messages", org.json.JSONArray().apply {
                     put(JSONObject().apply {
                         put("role", "system")
                         put("content", systemInstruction)
@@ -416,7 +274,7 @@ class AiAgentService {
                         put("content", promptText)
                     })
                 })
-                put("tools", buildOpenRouterToolsJson())
+                put("tools", ToolSchemaBuilder.buildOpenRouterToolsJson())
                 put("tool_choice", "auto")
                 put("stream", true)
                 put("temperature", 0.3)
@@ -462,7 +320,6 @@ class AiAgentService {
                             val firstChoice = choices.getJSONObject(0)
                             val delta = firstChoice.optJSONObject("delta")
 
-                            // Check Tool Calls in OpenRouter JSON delta
                             val toolCalls = delta?.optJSONArray("tool_calls")
                             if (toolCalls != null && toolCalls.length() > 0) {
                                 for (i in 0 until toolCalls.length()) {
@@ -496,7 +353,7 @@ class AiAgentService {
                             }
                         }
                     } catch (e: Exception) {
-                        // Skip malformed chunk
+                        // Skip malformed chunks
                     }
                 }
             }

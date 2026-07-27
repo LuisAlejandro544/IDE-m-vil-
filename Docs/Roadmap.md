@@ -9,8 +9,8 @@ Este documento define la hoja de ruta y planificación de características para 
 - [x] Editor con barra rápida de símbolos programáticos.
 - [x] Persistencia de archivos y chat mediante Room DB SQLite.
 - [x] Módulo Nativo C++ integrado vía JNI.
-- [x] Servidor HTTP Localhost embebido en Rust sirviendo en `127.0.0.1:8080`.
-- [x] Integración de WebView con soporte para abrir en navegador externo del dispositivo.
+- [x] Servidor HTTP Localhost embebido en Rust sirviendo en `127.0.0.1:8080` con soporte para rutas y recursos dinámicos.
+- [x] Integración de WebView con soporte multipágina (`index.html`, `about.html`), historial de navegación (Atrás/Adelante), barra de dirección URL y apertura en navegador externo del dispositivo.
 
 ---
 
@@ -22,9 +22,15 @@ Este documento define la hoja de ruta y planificación de características para 
 
 ---
 
-## 📌 Fase 3: Asistente IA con Herramientas & Skills `.md` en Tiempo Real (COMPLETADO ✅)
+## 📌 Fase 3: Asistente IA con Herramientas, Multi-Agente Director & Skills `.md` (COMPLETADO ✅)
+- [x] **Arquitectura Multi-Agente (Director + 4 Sub-Agentes)**:
+  - Agente Director coordinando a los sub-agentes Arquitecto 🏗️, Frontend 🎨, Backend/Lógica ⚡ y QA 🛡️.
+- [x] **Tres Modos de Chat Seleccionables (`ChatMode`)**:
+  - 💬 **Chat (Planificación)**: Modo para dar ideas, estructurar proyectos y responder preguntas sin modificar código.
+  - 🐾 **Código Paso a Paso**: Modo supervisado donde los sub-agentes proponen cambios que el usuario aprueba con un clic.
+  - 🚀 **Código Completo (Autónomo)**: Modo 100% automático donde la IA ejecuta las herramientas e implementa todo el código directamente.
 - [x] **Llamada a Herramientas (Tool Calling)**: Integración de herramientas en tiempo real para Gemini y OpenRouter.
-- [x] **Operaciones del Agente**: `get_project_structure`, `read_file`, `edit_file`, `create_file` y `delete_file`.
+- [x] **Operaciones del Agente**: `get_project_structure`, `read_file`, `edit_file`, `create_file`, `delete_file` y `get_diagnostics`.
 - [x] **Sistema de Skills `.md` Detrás de Escena (`/skills/`)**:
   - `tool_usage_guide.md`: Guía de herramientas y prohibición estricta de reescribir un archivo completo en `edit_file`.
   - `design_ui_ux.md`: Diseños M3 y estética moderna.

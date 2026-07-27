@@ -6,12 +6,19 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.api.AiAgentService
 import com.example.data.api.AiProvider
+import com.example.data.api.ChatMode
 import com.example.data.db.AppDatabase
 import com.example.data.db.ChatMessageEntity
-import com.example.data.db.DiagnosticLogEntity
 import com.example.data.db.ProjectEntity
 import com.example.data.db.ProjectFileEntity
 import com.example.data.repository.IdeRepository
+import com.example.ui.delegate.AgentToolExecutor
+import com.example.ui.state.AiAndDiagnosticsState
+import com.example.ui.state.EditorState
+import com.example.ui.state.IdeUiState
+import com.example.ui.state.IdeViewMode
+import com.example.ui.state.ProjectState
+import com.example.ui.state.UiControlState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -21,66 +28,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-
-enum class IdeViewMode {
-    EDITOR,
-    PREVIEW,
-    SPLIT,
-    DIAGNOSTICS
-}
-
-private data class ProjectState(
-    val currentProjectId: Long?,
-    val currentProject: ProjectEntity?,
-    val projects: List<ProjectEntity>
-)
-
-private data class EditorState(
-    val files: List<ProjectFileEntity>,
-    val openTabs: List<String>,
-    val activeFilePath: String?,
-    val editorContent: String,
-    val savedContent: String
-)
-
-private data class UiControlState(
-    val viewMode: IdeViewMode,
-    val isChatOpen: Boolean,
-    val isAiLoading: Boolean,
-    val showAiSettingsDialog: Boolean,
-    val showNewFileDialog: Boolean,
-    val toastMessage: String?
-)
-
-private data class AiAndDiagnosticsState(
-    val chatMessages: List<ChatMessageEntity>,
-    val diagnosticLogs: List<DiagnosticLogEntity>,
-    val selectedAiProvider: AiProvider,
-    val openRouterApiKey: String,
-    val customGeminiApiKey: String
-)
-
-data class IdeUiState(
-    val currentProjectId: Long? = null,
-    val currentProject: ProjectEntity? = null,
-    val projects: List<ProjectEntity> = emptyList(),
-    val files: List<ProjectFileEntity> = emptyList(),
-    val openTabs: List<String> = emptyList(),
-    val activeFilePath: String? = null,
-    val activeFileContent: String = "",
-    val hasUnsavedChanges: Boolean = false,
-    val viewMode: IdeViewMode = IdeViewMode.EDITOR,
-    val isChatOpen: Boolean = false,
-    val chatMessages: List<ChatMessageEntity> = emptyList(),
-    val diagnosticLogs: List<DiagnosticLogEntity> = emptyList(),
-    val isAiLoading: Boolean = false,
-    val selectedAiProvider: AiProvider = AiProvider.GEMINI,
-    val openRouterApiKey: String = "",
-    val customGeminiApiKey: String = "",
-    val showAiSettingsDialog: Boolean = false,
-    val showNewFileDialog: Boolean = false,
-    val pendingActionMessage: String? = null
-)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class IdeViewModel(application: Application) : AndroidViewModel(application) {
@@ -93,6 +40,7 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
         diagnosticLogDao = db.diagnosticLogDao()
     )
     private val aiAgentService = AiAgentService()
+    private val toolExecutor = AgentToolExecutor(repository)
 
     private val prefs = application.getSharedPreferences("devstudio_ai_prefs", Context.MODE_PRIVATE)
 
@@ -108,6 +56,7 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
     private val _isAiLoading = MutableStateFlow(false)
 
     private val _selectedAiProvider = MutableStateFlow(AiProvider.GEMINI)
+    private val _selectedChatMode = MutableStateFlow(ChatMode.STEP_BY_STEP)
     private val _openRouterApiKey = MutableStateFlow("")
     private val _customGeminiApiKey = MutableStateFlow("")
     private val _showAiSettingsDialog = MutableStateFlow(false)
@@ -164,10 +113,10 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
         activeMessagesFlow,
         activeLogsFlow,
         _selectedAiProvider,
-        _openRouterApiKey,
-        _customGeminiApiKey
-    ) { msgs, logs, provider, openRouterKey, geminiKey ->
-        AiAndDiagnosticsState(msgs, logs, provider, openRouterKey, geminiKey)
+        _selectedChatMode,
+        combine(_openRouterApiKey, _customGeminiApiKey) { openKey, geminiKey -> openKey to geminiKey }
+    ) { msgs, logs, provider, mode, (openRouterKey, geminiKey) ->
+        AiAndDiagnosticsState(msgs, logs, provider, mode, openRouterKey, geminiKey)
     }
 
     val uiState: StateFlow<IdeUiState> = combine(
@@ -191,6 +140,7 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
             diagnosticLogs = ai.diagnosticLogs,
             isAiLoading = ctrl.isAiLoading,
             selectedAiProvider = ai.selectedAiProvider,
+            selectedChatMode = ai.selectedChatMode,
             openRouterApiKey = ai.openRouterApiKey,
             customGeminiApiKey = ai.customGeminiApiKey,
             showAiSettingsDialog = ctrl.showAiSettingsDialog,
@@ -206,6 +156,8 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
     init {
         val savedProviderName = prefs.getString("ai_provider", AiProvider.GEMINI.name) ?: AiProvider.GEMINI.name
         _selectedAiProvider.value = try { AiProvider.valueOf(savedProviderName) } catch (e: Exception) { AiProvider.GEMINI }
+        val savedModeName = prefs.getString("chat_mode", ChatMode.STEP_BY_STEP.name) ?: ChatMode.STEP_BY_STEP.name
+        _selectedChatMode.value = try { ChatMode.valueOf(savedModeName) } catch (e: Exception) { ChatMode.STEP_BY_STEP }
         _openRouterApiKey.value = prefs.getString("openrouter_api_key", "") ?: ""
         _customGeminiApiKey.value = prefs.getString("gemini_api_key", "") ?: ""
 
@@ -273,6 +225,11 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
         saveAiPreferences()
     }
 
+    fun selectChatMode(mode: ChatMode) {
+        _selectedChatMode.value = mode
+        saveAiPreferences()
+    }
+
     fun saveAiSettings(provider: AiProvider, openRouterKey: String, geminiKey: String) {
         _selectedAiProvider.value = provider
         _openRouterApiKey.value = openRouterKey
@@ -288,6 +245,7 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
     private fun saveAiPreferences() {
         prefs.edit()
             .putString("ai_provider", _selectedAiProvider.value.name)
+            .putString("chat_mode", _selectedChatMode.value.name)
             .putString("openrouter_api_key", _openRouterApiKey.value)
             .putString("gemini_api_key", _customGeminiApiKey.value)
             .apply()
@@ -466,11 +424,16 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             val currentProvider = _selectedAiProvider.value
+            val currentChatMode = _selectedChatMode.value
             val openRouterKey = _openRouterApiKey.value
             val geminiKey = _customGeminiApiKey.value
 
+            var lastTargetFile: String? = null
+            var lastProposedCode: String? = null
+
             aiAgentService.streamUserPrompt(
                 provider = currentProvider,
+                chatMode = currentChatMode,
                 userPrompt = userPrompt,
                 currentFileContent = activeContent,
                 currentFilePath = activePath,
@@ -478,9 +441,24 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
                 openRouterApiKey = openRouterKey,
                 customGeminiApiKey = geminiKey,
                 onExecuteTool = { toolName, args ->
-                    executeAgentTool(projectId, toolName, args)
+                    toolExecutor.executeTool(
+                        projectId = projectId,
+                        toolName = toolName,
+                        args = args,
+                        filesList = uiState.value.files,
+                        activeFilePath = _activeFilePath.value,
+                        onFileContentUpdated = { _, newContent ->
+                            _editorContent.value = newContent
+                            _savedContent.value = newContent
+                        },
+                        onFileSelected = { selectFile(it) },
+                        onTabClosed = { closeTab(it) }
+                    )
                 }
             ).collect { streamResult ->
+                lastTargetFile = streamResult.targetFilePath
+                lastProposedCode = streamResult.proposedCode
+
                 repository.updateChatMessageContent(
                     id = agentMsgId,
                     text = streamResult.explanation,
@@ -489,86 +467,20 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
 
+            // In Full Autonomous mode, automatically apply code proposal if present
+            if (currentChatMode == ChatMode.FULL_AUTONOMOUS && lastProposedCode != null) {
+                val autoMsg = ChatMessageEntity(
+                    id = agentMsgId,
+                    projectId = projectId,
+                    sender = "agent",
+                    text = "Autónomo",
+                    targetFilePath = lastTargetFile,
+                    proposedCode = lastProposedCode
+                )
+                applyAgentProposedCode(autoMsg)
+            }
+
             _isAiLoading.value = false
-        }
-    }
-
-    private suspend fun executeAgentTool(projectId: Long, toolName: String, args: org.json.JSONObject): String {
-        return when (toolName) {
-            "get_project_structure" -> {
-                val filesList = uiState.value.files
-                if (filesList.isEmpty()) "Proyecto vacío"
-                else filesList.joinToString("\n") { f ->
-                    if (f.isDirectory) "📁 [DIR] ${f.path}" else "📄 ${f.path} (${f.content.length} chars)"
-                }
-            }
-
-            "read_file" -> {
-                val path = args.optString("path")
-                if (path.isBlank()) "❌ Ruta de archivo requerida."
-                else {
-                    val f = repository.getFileByPath(projectId, path)
-                    if (f == null) "❌ Archivo '$path' no encontrado."
-                    else "📄 Contenido de '$path':\n```\n${f.content}\n```"
-                }
-            }
-
-            "edit_file" -> {
-                val path = args.optString("path")
-                val targetContent = args.optString("target_content")
-                val replacementContent = args.optString("replacement_content")
-
-                if (path.isBlank()) "❌ Ruta de archivo requerida."
-                else {
-                    val res = repository.editFileContentByTarget(projectId, path, targetContent, replacementContent)
-                    if (_activeFilePath.value == path) {
-                        val updated = repository.getFileByPath(projectId, path)
-                        if (updated != null) {
-                            _editorContent.value = updated.content
-                            _savedContent.value = updated.content
-                        }
-                    }
-                    res
-                }
-            }
-
-            "create_file" -> {
-                val path = args.optString("path")
-                val content = args.optString("content")
-                if (path.isBlank()) "❌ Ruta de archivo requerida."
-                else {
-                    val cleanPath = if (path.startsWith("/")) path else "/$path"
-                    val fileName = cleanPath.substringAfterLast('/')
-                    val parent = if (cleanPath.count { it == '/' } > 1) cleanPath.substringBeforeLast('/') else "/"
-                    repository.createFile(projectId, fileName, cleanPath, content, parentPath = parent)
-                    selectFile(cleanPath)
-                    "✅ Éxito: Archivo '$cleanPath' creado y abierto."
-                }
-            }
-
-            "delete_file" -> {
-                val path = args.optString("path")
-                if (path.isBlank()) "❌ Ruta requerida."
-                else {
-                    val res = repository.deleteFileByPath(projectId, path)
-                    closeTab(path)
-                    res
-                }
-            }
-
-            "get_diagnostics" -> {
-                val logs = repository.runLinterAnalysis(projectId)
-                if (logs.isEmpty()) "🟢 Consola de Diagnóstico: Sin errores reportados."
-                else {
-                    val sb = StringBuilder("🔍 Reporte de Consola de Diagnóstico & Linter:\n")
-                    logs.forEach { log ->
-                        sb.append("- [${log.level}][${log.source}] ${log.filePath ?: ""}:${log.lineNumber ?: 0} -> ${log.message}\n")
-                    }
-                    sb.toString()
-                }
-            }
-
-            else -> "⚠️ Herramienta '$toolName' no reconocida."
         }
     }
 
