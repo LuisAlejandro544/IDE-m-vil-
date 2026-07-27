@@ -2,6 +2,7 @@ package com.example.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,13 +21,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -47,6 +53,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.api.AiProvider
 import com.example.data.db.ChatMessageEntity
 import com.example.ui.theme.AccentBlue
 import com.example.ui.theme.EditorBackground
@@ -60,6 +67,10 @@ import com.example.ui.theme.SoftGreen
 fun AiAgentChatSheet(
     messages: List<ChatMessageEntity>,
     isAiLoading: Boolean,
+    selectedProvider: AiProvider,
+    openRouterApiKey: String,
+    onSelectProvider: (AiProvider) -> Unit,
+    onOpenSettings: () -> Unit,
     onSendPrompt: (String) -> Unit,
     onApplyProposedCode: (ChatMessageEntity) -> Unit,
     onCloseChat: () -> Unit,
@@ -68,10 +79,10 @@ fun AiAgentChatSheet(
     var inputText by remember { mutableStateOf("") }
 
     val quickPrompts = listOf(
-        "✨ Agregar un botón al HTML",
-        "💄 Mejorar diseño CSS moderno",
-        "⚡ Crear función en JS",
-        "📄 Explicar este archivo"
+        "🛠️ Muestra la estructura del proyecto",
+        "✏️ Cambia el título de /index.html",
+        "📄 Lee /style.css y sugiere mejoras",
+        "➕ Crea un archivo app.js"
     )
 
     Column(
@@ -87,7 +98,7 @@ fun AiAgentChatSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(EditorPanelHeader)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -107,21 +118,28 @@ fun AiAgentChatSheet(
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Agente de Código IA",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = if (isAiLoading) "Generando cambios..." else "En línea y listo para asistirte",
+                    text = if (isAiLoading) "⚡ Transmitiendo en tiempo real..." else "Modo: ${selectedProvider.providerBadge}",
                     fontSize = 11.sp,
-                    color = if (isAiLoading) AccentBlue else SoftGreen
+                    color = if (isAiLoading) AccentBlue else SoftGreen,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            IconButton(onClick = onOpenSettings) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Configurar API Keys",
+                    tint = AccentBlue
+                )
+            }
 
             IconButton(onClick = onCloseChat) {
                 Icon(
@@ -132,18 +150,126 @@ fun AiAgentChatSheet(
             }
         }
 
+        // Mode Selector Bar (Gemini vs OpenRouter)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(EditorBackground)
+                .border(1.dp, EditorBorder)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Modelo:",
+                fontSize = 11.sp,
+                color = LineNumberColor,
+                fontWeight = FontWeight.Bold
+            )
+
+            AiProvider.values().forEach { provider ->
+                val isSelected = provider == selectedProvider
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { onSelectProvider(provider) },
+                    label = {
+                        Text(
+                            text = provider.displayName,
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = AccentBlue,
+                        selectedLabelColor = EditorBackground,
+                        containerColor = EditorPanelHeader,
+                        labelColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    modifier = Modifier.height(28.dp)
+                )
+            }
+        }
+
+        // Active Skills Bar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(EditorPanelHeader.copy(alpha = 0.5f))
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = "Skills:",
+                fontSize = 10.sp,
+                color = LineNumberColor,
+                fontWeight = FontWeight.Bold
+            )
+            val skills = listOf("🎨 UI/UX Design", "📱 Responsive Layout", "⚡ Clean Logic")
+            skills.forEach { skill ->
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(AccentBlue.copy(alpha = 0.15f))
+                        .border(1.dp, AccentBlue.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = skill,
+                        fontSize = 10.sp,
+                        color = AccentBlue,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+
+        // Warning banner if OpenRouter is selected and key is empty
+        if (selectedProvider == AiProvider.OPENROUTER && openRouterApiKey.isBlank()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f))
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Requiere API Key de OpenRouter",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.weight(1f)
+                )
+                Button(
+                    onClick = onOpenSettings,
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                    shape = RoundedCornerShape(6.dp),
+                    modifier = Modifier.height(26.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Key, contentDescription = null, modifier = Modifier.size(12.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Ingresar", fontSize = 10.sp)
+                }
+            }
+        }
+
         // Quick Suggestion Chips
         LazyRow(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(quickPrompts) { prompt ->
                 SuggestionChip(
-                    onClick = {
-                        inputText = prompt
-                    },
+                    onClick = { inputText = prompt },
                     label = { Text(prompt, fontSize = 11.sp) },
                     colors = SuggestionChipDefaults.suggestionChipColors(
                         containerColor = EditorPanelHeader,
@@ -189,7 +315,7 @@ fun AiAgentChatSheet(
                             .padding(12.dp)
                     ) {
                         Text(
-                            text = if (isUser) "Tú" else "Agente IA",
+                            text = if (isUser) "Tú" else "Agente IA (${selectedProvider.displayName})",
                             fontWeight = FontWeight.Bold,
                             fontSize = 11.sp,
                             color = if (isUser) EditorBackground else AccentBlue
@@ -226,7 +352,7 @@ fun AiAgentChatSheet(
                                     Spacer(modifier = Modifier.height(4.dp))
                                     val code = msg.proposedCode ?: ""
                                     Text(
-                                        text = code.take(200) + if (code.length > 200) "..." else "",
+                                        text = code.take(300) + if (code.length > 300) "..." else "",
                                         fontSize = 11.sp,
                                         color = LineNumberColor,
                                         fontFamily = FontFamily.Monospace
@@ -275,7 +401,7 @@ fun AiAgentChatSheet(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "El Agente IA está analizando tu código...",
+                            text = "Streaming en tiempo real (${selectedProvider.modelName})...",
                             fontSize = 12.sp,
                             color = LineNumberColor
                         )

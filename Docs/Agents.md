@@ -13,6 +13,22 @@ Este documento especifica las pautas de estilo de código, flujos de trabajo y e
 
 ---
 
+## 🧠 Sistema de Skills de IA Integradas (`AiSkills.kt`)
+
+El motor de inteligencia artificial de DevStudio incorpora 3 Skills nativas por detrás en la llamada a la API:
+1. **🎨 Diseños (UI/UX)**: Estética moderna, sombras sutiles, bordes suaves y Material Design 3.
+2. **📱 Responsive**: Maquetación adaptativa Mobile-First con Flexbox, CSS Grid y sin scroll horizontal indeseado.
+3. **⚡ Lógica (Clean Code)**: Código JavaScript ES6+ limpio, manejo de errores robusto, funciones modulares y validación.
+
+---
+
+## 🛠️ Ejecución de Herramientas IA (Tool Calling)
+
+- El agente de IA cuenta con herramientas ejecutables en tiempo real (`get_project_structure`, `read_file`, `edit_file`, `create_file`, `delete_file`).
+- Al invocar `edit_file`, las modificaciones se aplican directamente al repositorio de Room DB y se reflejan al instante en la pestaña activa del editor.
+
+---
+
 ## 📁 Manejo de Archivos y Carpetas
 
 - **Jerarquía y Anidación**: Toda adición de carpetas o archivos debe registrar `parentPath` en `ProjectFileEntity`.

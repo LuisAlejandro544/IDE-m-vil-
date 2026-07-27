@@ -24,21 +24,23 @@ A continuación se detalla la arquitectura de directorios del proyecto DevStudio
 │       │       └── src/lib.rs     # Servidor HTTP Localhost JNI en Rust
 │       ├── java/com/example/
 │       │   ├── MainActivity.kt    # Actividad principal y Scaffold Compose
-│       │   ├── data/              # Capa de Datos (Room DB, DAOs, Entidades, Repositorio)
-│       │   │   ├── db/            # AppDatabase, ProjectFileEntity (isDir, parentPath), ChatMessageEntity
-│       │   │   └── repository/    # IdeRepository
+│       │   ├── data/              # Capa de Datos (Room DB, DAOs, Entidades, Repositorio, API)
+│       │   │   ├── api/           # AiAgentService, AiSkills (Inyección de Skills de UI, Responsive, Lógica)
+│       │   │   ├── db/            # AppDatabase, ProjectFileEntity, ChatMessageEntity
+│       │   │   └── repository/    # IdeRepository (Manejo de archivos y herramientas de IA)
 │       │   ├── native/            # Enlaces JNI / Interop Nativo
 │       │   │   ├── CppEngine.kt   # Interfaz Kotlin para el motor C++
 │       │   │   └── RustHttpServer.kt # Interfaz Kotlin para el Servidor HTTP Rust
 │       │   └── ui/                # Componentes de Interfaz con Jetpack Compose
-│       │       ├── IdeViewModel.kt # ViewModel principal del IDE
+│       │       ├── IdeViewModel.kt # ViewModel principal del IDE (Mapeo de Tool Calls y Skills)
 │       │       ├── components/    # Componentes modulares
 │       │       │   ├── CodeEditorView.kt   # Editor de código nativo con scroll y numeración
 │       │       │   ├── SyntaxHighlighter.kt# Motor de coloreado de sintaxis
 │       │       │   ├── FileManagerDrawer.kt# Árbol de archivos/carpetas jerárquico y anidado
 │       │       │   ├── NewFileDialog.kt    # Diálogo para crear archivos y carpetas
 │       │       │   ├── LivePreview.kt      # Vista previa WebView con servidor Rust
-│       │       │   ├── AgentChatSheet.kt   # Interfaz del Asistente de IA
+│       │       │   ├── AiAgentChatSheet.kt # Interfaz del Asistente de IA con chips de Skills y streaming
+│       │       │   ├── AiSettingsDialog.kt # Diálogo de configuración de API Keys y Proveedores
 │       │       │   └── QuickSymbolBar.kt   # Barra rápida de caracteres de programación
 │       │       └── theme/         # Sistema de diseño M3 y paleta de colores Editor
 │       └── res/                   # Recursos visuales, valores y cadenas XML

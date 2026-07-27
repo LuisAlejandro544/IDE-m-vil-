@@ -61,10 +61,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.data.api.AiProvider
 import com.example.ui.IdeUiState
 import com.example.ui.IdeViewMode
 import com.example.ui.IdeViewModel
 import com.example.ui.components.AiAgentChatSheet
+import com.example.ui.components.AiSettingsDialog
 import com.example.ui.components.CodeEditorView
 import com.example.ui.components.FileManagerDrawer
 import com.example.ui.components.LivePreviewView
@@ -114,7 +116,11 @@ class MainActivity : ComponentActivity() {
                     onCreateFolder = { name, parentPath -> viewModel.createNewFolder(name, parentPath = parentPath) },
                     onSendAgentPrompt = { viewModel.sendAgentPrompt(it) },
                     onApplyProposedCode = { viewModel.applyAgentProposedCode(it) },
-                    onInsertSymbol = { viewModel.insertSymbolIntoEditor(it) }
+                    onInsertSymbol = { viewModel.insertSymbolIntoEditor(it) },
+                    onSelectProvider = { viewModel.selectAiProvider(it) },
+                    onOpenSettings = { viewModel.setShowAiSettingsDialog(true) },
+                    onSaveAiSettings = { provider, openRouterKey, geminiKey -> viewModel.saveAiSettings(provider, openRouterKey, geminiKey) },
+                    onDismissAiSettings = { viewModel.setShowAiSettingsDialog(false) }
                 )
             }
         }
@@ -136,7 +142,11 @@ fun DevStudioIdeScreen(
     onCreateFolder: (name: String, parentPath: String) -> Unit,
     onSendAgentPrompt: (String) -> Unit,
     onApplyProposedCode: (com.example.data.db.ChatMessageEntity) -> Unit,
-    onInsertSymbol: (String) -> Unit
+    onInsertSymbol: (String) -> Unit,
+    onSelectProvider: (AiProvider) -> Unit,
+    onOpenSettings: () -> Unit,
+    onSaveAiSettings: (AiProvider, String, String) -> Unit,
+    onDismissAiSettings: () -> Unit
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -270,6 +280,10 @@ fun DevStudioIdeScreen(
                     AiAgentChatSheet(
                         messages = uiState.chatMessages,
                         isAiLoading = uiState.isAiLoading,
+                        selectedProvider = uiState.selectedAiProvider,
+                        openRouterApiKey = uiState.openRouterApiKey,
+                        onSelectProvider = onSelectProvider,
+                        onOpenSettings = onOpenSettings,
                         onSendPrompt = onSendAgentPrompt,
                         onApplyProposedCode = onApplyProposedCode,
                         onCloseChat = onToggleChat
@@ -285,6 +299,16 @@ fun DevStudioIdeScreen(
             onDismiss = { onShowNewFileDialog(false) },
             onCreateFile = onCreateFile,
             onCreateFolder = onCreateFolder
+        )
+    }
+
+    if (uiState.showAiSettingsDialog) {
+        AiSettingsDialog(
+            selectedProvider = uiState.selectedAiProvider,
+            openRouterApiKey = uiState.openRouterApiKey,
+            customGeminiApiKey = uiState.customGeminiApiKey,
+            onDismiss = onDismissAiSettings,
+            onSaveSettings = onSaveAiSettings
         )
     }
 }

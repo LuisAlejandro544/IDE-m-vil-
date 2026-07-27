@@ -30,6 +30,9 @@ interface ProjectFileDao {
     @Query("UPDATE project_files SET content = :content, updatedAt = :updatedAt WHERE path = :path")
     suspend fun updateFileContentByPath(path: String, content: String, updatedAt: Long = System.currentTimeMillis())
 
+    @Query("DELETE FROM project_files WHERE path LIKE '%.md' OR extension = 'md'")
+    suspend fun deleteMarkdownFiles()
+
     @Query("DELETE FROM project_files WHERE id = :id")
     suspend fun deleteFileById(id: Long)
 

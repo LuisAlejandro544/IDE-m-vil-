@@ -18,6 +18,9 @@ interface ChatMessageDao {
     @Update
     suspend fun updateMessage(message: ChatMessageEntity)
 
+    @Query("UPDATE chat_messages SET text = :text, targetFilePath = :targetFilePath, proposedCode = :proposedCode WHERE id = :id")
+    suspend fun updateMessageContent(id: Long, text: String, targetFilePath: String?, proposedCode: String?)
+
     @Query("UPDATE chat_messages SET isApplied = :isApplied WHERE id = :id")
     suspend fun setMessageApplied(id: Long, isApplied: Boolean = true)
 

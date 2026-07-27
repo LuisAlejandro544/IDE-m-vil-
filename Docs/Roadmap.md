@@ -22,13 +22,14 @@ Este documento define la hoja de ruta y planificación de características para 
 
 ---
 
-## 📌 Fase 3: Control de Versiones Git Integrado (EN PROCESO ⏳)
-- [ ] Soporte para operaciones Git locales (Commit, Status, Branch).
-- [ ] Integración con GitHub (Clonar repositorios y realizar Push/Pull).
+## 📌 Fase 3: Asistente IA con Herramientas & Skills en Tiempo Real (COMPLETADO ✅)
+- [x] **Llamada a Herramientas (Tool Calling)**: Integración de herramientas en tiempo real para Gemini y OpenRouter.
+- [x] **Operaciones del Agente**: `get_project_structure`, `read_file`, `edit_file`, `create_file` y `delete_file`.
+- [x] **Inyección de Skills de IA (`AiSkills.kt`)**: Habilidades automáticas de Diseños UI/UX, Adaptabilidad Responsive Mobile-First y Lógica Robusta / Clean Code.
+- [x] **Sincronización en Tiempo Real**: Reflejo inmediato de cambios de código en la vista del editor activo y consola de herramientas del chat.
 
 ---
 
-## 📌 Fase 4: Capacidades Avanzadas de Agente IA
-- [ ] Edición multianchivo simultánea propuesta por el Agente IA.
-- [ ] Refactorización automática mediante análisis estático.
-- [ ] Soporte de comandos de voz para el agente de código.
+## 📌 Fase 4: Control de Versiones Git Integrado (EN PROCESO ⏳)
+- [ ] Soporte para operaciones Git locales (Commit, Status, Branch).
+- [ ] Integración con GitHub (Clonar repositorios y realizar Push/Pull).

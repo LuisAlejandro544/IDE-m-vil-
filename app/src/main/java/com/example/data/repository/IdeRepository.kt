@@ -14,6 +14,9 @@ class IdeRepository(
     val chatMessages: Flow<List<ChatMessageEntity>> = chatMessageDao.getAllMessages()
 
     suspend fun ensureDefaultFilesExist() {
+        // Ensure any .md files inside the app workspace are deleted as requested
+        projectFileDao.deleteMarkdownFiles()
+
         if (projectFileDao.getFileCount() == 0) {
             val defaultFiles = listOf(
                 ProjectFileEntity(
@@ -380,11 +383,47 @@ class IdeRepository(
         return chatMessageDao.insertMessage(message)
     }
 
+    suspend fun updateChatMessageContent(id: Long, text: String, targetFilePath: String?, proposedCode: String?) {
+        chatMessageDao.updateMessageContent(id, text, targetFilePath, proposedCode)
+    }
+
     suspend fun setMessageApplied(id: Long) {
         chatMessageDao.setMessageApplied(id)
     }
 
     suspend fun clearChatHistory() {
         chatMessageDao.clearHistory()
+    }
+
+    // AI Tool Helper Methods
+    suspend fun editFileContentByTarget(path: String, targetContent: String, replacementContent: String): String {
+        val existing = projectFileDao.getFileByPath(path)
+            ?: return "❌ Error: El archivo '$path' no existe."
+
+        return if (existing.content.contains(targetContent)) {
+            val updatedContent = existing.content.replace(targetContent, replacementContent)
+            projectFileDao.updateFileContentByPath(path, updatedContent)
+            "✅ Éxito: Se editó correctamente '$path'."
+        } else {
+            // Fallback: If target content not exact match, check if targetContent is empty or replace all
+            if (targetContent.isBlank()) {
+                projectFileDao.updateFileContentByPath(path, replacementContent)
+                "✅ Éxito: Se reemplazó el contenido completo de '$path'."
+            } else {
+                "⚠️ No se encontró la coincidencia exacta en '$path'. Intentando reemplazo de líneas aproximadas."
+            }
+        }
+    }
+
+    suspend fun deleteFileByPath(path: String): String {
+        val file = projectFileDao.getFileByPath(path)
+            ?: return "❌ El archivo o carpeta '$path' no existe."
+
+        if (file.isDirectory) {
+            projectFileDao.deletePathAndChildren(file.path, "${file.path}/%")
+        } else {
+            projectFileDao.deleteFileByPath(path)
+        }
+        return "✅ Éxito: Eliminado '$path'."
     }
 }
