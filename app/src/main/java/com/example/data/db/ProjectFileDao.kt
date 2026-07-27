@@ -1,0 +1,41 @@
+package com.example.data.db
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface ProjectFileDao {
+    @Query("SELECT * FROM project_files ORDER BY isDirectory DESC, name ASC")
+    fun getAllFiles(): Flow<List<ProjectFileEntity>>
+
+    @Query("SELECT * FROM project_files WHERE path = :path LIMIT 1")
+    suspend fun getFileByPath(path: String): ProjectFileEntity?
+
+    @Query("SELECT * FROM project_files WHERE id = :id LIMIT 1")
+    suspend fun getFileById(id: Long): ProjectFileEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFile(file: ProjectFileEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFiles(files: List<ProjectFileEntity>)
+
+    @Update
+    suspend fun updateFile(file: ProjectFileEntity)
+
+    @Query("UPDATE project_files SET content = :content, updatedAt = :updatedAt WHERE path = :path")
+    suspend fun updateFileContentByPath(path: String, content: String, updatedAt: Long = System.currentTimeMillis())
+
+    @Query("DELETE FROM project_files WHERE id = :id")
+    suspend fun deleteFileById(id: Long)
+
+    @Query("DELETE FROM project_files WHERE path = :path")
+    suspend fun deleteFileByPath(path: String)
+
+    @Query("SELECT COUNT(*) FROM project_files")
+    suspend fun getFileCount(): Int
+}

@@ -1,0 +1,6 @@
+{
+  "name": "DevStudio",
+  "description": "Mobile IDE with virtual file manager, code editor, live HTML/CSS preview, and AI coding agent.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

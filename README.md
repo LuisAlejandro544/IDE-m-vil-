@@ -1,11 +1,33 @@
-<div align="center">
+# DevStudio IDE - Mobile Polyglot Development Environment
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+**DevStudio** es un IDE móvil avanzado para Android desarrollado en Kotlin y Jetpack Compose, diseñado para ofrecer una experiencia de desarrollo completa directamente en dispositivos móviles.
 
-  <h1>Built with AI Studio</h2>
+---
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## 🌟 Características Principales
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+- **Editor de Código Multilenguaje**: Soporte para HTML, CSS, JavaScript, Markdown, JSON, Kotlin, C++ y Rust.
+- **Servidor HTTP Localhost Integrado en Rust**: Servidor incrustado de alto rendimiento para servir la vista previa web en `http://127.0.0.1:8080`.
+- **Módulo Nativo C++**: Núcleo C++ nativo listo para procesamiento intensivo a través de JNI.
+- **Asistente de Código IA Integrado**: Chat interactivo con motor Gemini para generación, análisis y aplicación automática de cambios de código.
+- **Vista Previa en Vivo**: Renderizado Web en tiempo real con alternancia de modos teléfono/tablet y botón para abrir en el navegador del dispositivo.
+- **Barra de Símbolos Rápidos**: Teclado auxiliar optimizado para programación táctil (`<`, `>`, `{`, `}`, `(`, `)`, `;`, `=`, `/`, `TAB`).
+- **Persistencia Local con Room**: Base de datos SQLite reactiva para almacenamiento seguro de proyectos y chats.
 
-</div>
+---
+
+## 🛠️ Stack Tecnológico
+
+- **Frontend / UI**: Kotlin, Jetpack Compose, Material Design 3.
+- **Nativo C++**: CMake, NDK, JNI (`libdevstudio_cpp.so`).
+- **Nativo Rust**: Rust `cdylib`, JNI, `tiny_http` (`libdevstudio_server.so`).
+- **Persistencia**: Android Room Database, Kotlin Coroutines, StateFlow.
+- **Vista Previa**: Android WebView + Servidor HTTP Localhost Rust en `127.0.0.1:8080`.
+
+---
+
+## 🚀 Cómo Ejecutar el Proyecto
+
+1. Abrir el proyecto en Android Studio o compilar mediante `./gradlew assembleDebug`.
+2. Ejecutar la aplicación en un emulador o dispositivo real.
+3. El servidor local en Rust iniciará automáticamente en `http://127.0.0.1:8080` al abrir la vista previa.

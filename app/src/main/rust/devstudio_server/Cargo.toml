@@ -1,0 +1,14 @@
+[package]
+name = "devstudio_server"
+version = "0.1.0"
+edition = "2021"
+authors = ["DevStudio Team <dev@devstudio.local>"]
+description = "Embedded Rust HTTP Localhost Server for DevStudio Android IDE"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+jni = "0.21"
+tiny_http = "0.12"
+log = "0.4"

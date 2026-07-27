@@ -1,0 +1,75 @@
+name: Build Debug APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Android Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Set up Rust toolchain
+        uses: actions/rust-lang/setup-rust@v1
+        with:
+          toolchain: stable
+
+      - name: Cache Gradle packages & Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            app/build/
+          key: ${{ runner.os }}-gradle-cargo-${{ hashFiles('**/*.gradle*', '**/libs.versions.toml', '**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-cargo-
+
+      - name: Generate Debug Keystore on the fly
+        run: |
+          keytool -genkey -v \
+            -keystore debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+          echo "Generated debug.keystore in runner environment."
+
+      - name: Grant execute permission for gradlew (if exists)
+        run: chmod +x gradlew || true
+
+      - name: Build Debug APK with Gradle
+        run: |
+          if [ -f "./gradlew" ]; then
+            ./gradlew assembleDebug --stacktrace
+          else
+            gradle assembleDebug --stacktrace
+          fi
+
+      - name: Upload Debug APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DevStudio-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 7
