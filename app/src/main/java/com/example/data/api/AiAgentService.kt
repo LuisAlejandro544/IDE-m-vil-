@@ -70,6 +70,7 @@ class AiAgentService {
             3. edit_file(path, target_content, replacement_content) -> Reemplaza líneas o bloques exactos de código en un archivo.
             4. create_file(path, content) -> Crea un nuevo archivo con el contenido proporcionado.
             5. delete_file(path) -> Elimina un archivo o carpeta.
+            6. get_diagnostics() -> Consulta los registros de la Consola de Diagnóstico en Vivo y errores del Linter.
 
             INSTRUCCIONES DE USO DE HERRAMIENTAS:
             - Si el usuario te pide crear, editar o eliminar un archivo, INVOCA directamente la herramienta correspondiente.
@@ -188,6 +189,10 @@ class AiAgentService {
                             put("required", JSONArray().put("path"))
                         })
                     })
+                    put(JSONObject().apply {
+                        put("name", "get_diagnostics")
+                        put("description", "Obtiene los logs y errores de sintaxis del Linter y Consola de Diagnóstico en Vivo")
+                    })
                 })
             })
         }
@@ -259,6 +264,13 @@ class AiAgentService {
                         })
                         put("required", JSONArray().put("path"))
                     })
+                })
+            })
+            put(JSONObject().apply {
+                put("type", "function")
+                put("function", JSONObject().apply {
+                    put("name", "get_diagnostics")
+                    put("description", "Obtiene los logs y errores del Linter y Consola de Diagnóstico en Vivo")
                 })
             })
         }

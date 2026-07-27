@@ -32,7 +32,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Menu
@@ -68,10 +70,12 @@ import com.example.ui.IdeViewModel
 import com.example.ui.components.AiAgentChatSheet
 import com.example.ui.components.AiSettingsDialog
 import com.example.ui.components.CodeEditorView
+import com.example.ui.components.DiagnosticConsoleView
 import com.example.ui.components.FileManagerDrawer
 import com.example.ui.components.LivePreviewView
 import com.example.ui.components.NewFileDialog
 import com.example.ui.components.QuickSymbolBar
+import com.example.ui.components.WorkspaceScreen
 import com.example.ui.theme.AccentBlue
 import com.example.ui.theme.DevStudioTheme
 import com.example.ui.theme.EditorBackground
@@ -102,26 +106,52 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                DevStudioIdeScreen(
-                    uiState = uiState,
-                    onSelectFile = { viewModel.selectFile(it) },
-                    onCloseTab = { viewModel.closeTab(it) },
-                    onUpdateContent = { viewModel.updateEditorContent(it) },
-                    onSaveFile = { viewModel.saveCurrentFile() },
-                    onDeleteFile = { viewModel.deleteFile(it) },
-                    onSetViewMode = { viewModel.setViewMode(it) },
-                    onToggleChat = { viewModel.toggleChat() },
-                    onShowNewFileDialog = { viewModel.setShowNewFileDialog(it) },
-                    onCreateFile = { name, parentPath -> viewModel.createNewFile(name, parentPath = parentPath) },
-                    onCreateFolder = { name, parentPath -> viewModel.createNewFolder(name, parentPath = parentPath) },
-                    onSendAgentPrompt = { viewModel.sendAgentPrompt(it) },
-                    onApplyProposedCode = { viewModel.applyAgentProposedCode(it) },
-                    onInsertSymbol = { viewModel.insertSymbolIntoEditor(it) },
-                    onSelectProvider = { viewModel.selectAiProvider(it) },
-                    onOpenSettings = { viewModel.setShowAiSettingsDialog(true) },
-                    onSaveAiSettings = { provider, openRouterKey, geminiKey -> viewModel.saveAiSettings(provider, openRouterKey, geminiKey) },
-                    onDismissAiSettings = { viewModel.setShowAiSettingsDialog(false) }
-                )
+                if (uiState.currentProjectId == null) {
+                    // Show Workspace Selection Screen
+                    WorkspaceScreen(
+                        projects = uiState.projects,
+                        onOpenProject = { projectId -> viewModel.openProject(projectId) },
+                        onCreateProject = { name, desc, framework -> viewModel.createProject(name, desc, framework) },
+                        onDeleteProject = { projectId -> viewModel.deleteProject(projectId) },
+                        onOpenSettings = { viewModel.setShowAiSettingsDialog(true) }
+                    )
+                } else {
+                    // Show Main IDE Screen for Active Project
+                    DevStudioIdeScreen(
+                        uiState = uiState,
+                        onCloseProject = { viewModel.closeProject() },
+                        onSelectFile = { viewModel.selectFile(it) },
+                        onCloseTab = { viewModel.closeTab(it) },
+                        onUpdateContent = { viewModel.updateEditorContent(it) },
+                        onSaveFile = { viewModel.saveCurrentFile() },
+                        onDeleteFile = { viewModel.deleteFile(it) },
+                        onSetViewMode = { viewModel.setViewMode(it) },
+                        onToggleChat = { viewModel.toggleChat() },
+                        onShowNewFileDialog = { viewModel.setShowNewFileDialog(it) },
+                        onCreateFile = { name, parentPath -> viewModel.createNewFile(name, parentPath = parentPath) },
+                        onCreateFolder = { name, parentPath -> viewModel.createNewFolder(name, parentPath = parentPath) },
+                        onRunLinter = { viewModel.runLinterAnalysis() },
+                        onClearDiagnosticLogs = { viewModel.clearDiagnosticLogs() },
+                        onSendDiagnosticsToAi = { viewModel.sendDiagnosticsToAi() },
+                        onSendAgentPrompt = { viewModel.sendAgentPrompt(it) },
+                        onApplyProposedCode = { viewModel.applyAgentProposedCode(it) },
+                        onInsertSymbol = { viewModel.insertSymbolIntoEditor(it) },
+                        onSelectProvider = { viewModel.selectAiProvider(it) },
+                        onOpenSettings = { viewModel.setShowAiSettingsDialog(true) },
+                        onSaveAiSettings = { provider, openRouterKey, geminiKey -> viewModel.saveAiSettings(provider, openRouterKey, geminiKey) },
+                        onDismissAiSettings = { viewModel.setShowAiSettingsDialog(false) }
+                    )
+                }
+
+                if (uiState.showAiSettingsDialog) {
+                    AiSettingsDialog(
+                        selectedProvider = uiState.selectedAiProvider,
+                        openRouterApiKey = uiState.openRouterApiKey,
+                        customGeminiApiKey = uiState.customGeminiApiKey,
+                        onDismiss = { viewModel.setShowAiSettingsDialog(false) },
+                        onSaveSettings = { provider, openRouterKey, geminiKey -> viewModel.saveAiSettings(provider, openRouterKey, geminiKey) }
+                    )
+                }
             }
         }
     }
@@ -130,6 +160,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun DevStudioIdeScreen(
     uiState: IdeUiState,
+    onCloseProject: () -> Unit,
     onSelectFile: (String) -> Unit,
     onCloseTab: (String) -> Unit,
     onUpdateContent: (String) -> Unit,
@@ -140,6 +171,9 @@ fun DevStudioIdeScreen(
     onShowNewFileDialog: (Boolean) -> Unit,
     onCreateFile: (name: String, parentPath: String) -> Unit,
     onCreateFolder: (name: String, parentPath: String) -> Unit,
+    onRunLinter: () -> Unit,
+    onClearDiagnosticLogs: () -> Unit,
+    onSendDiagnosticsToAi: () -> Unit,
     onSendAgentPrompt: (String) -> Unit,
     onApplyProposedCode: (com.example.data.db.ChatMessageEntity) -> Unit,
     onInsertSymbol: (String) -> Unit,
@@ -175,9 +209,12 @@ fun DevStudioIdeScreen(
                 .windowInsetsPadding(WindowInsets.navigationBars),
             topBar = {
                 IdeTopAppBar(
+                    projectName = uiState.currentProject?.name ?: "Proyecto",
                     activeFilePath = uiState.activeFilePath,
                     hasUnsavedChanges = uiState.hasUnsavedChanges,
                     viewMode = uiState.viewMode,
+                    errorCount = uiState.diagnosticLogs.count { it.level == "ERROR" },
+                    onBackToWorkspace = onCloseProject,
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onSaveFile = onSaveFile,
                     onSetViewMode = onSetViewMode,
@@ -215,7 +252,7 @@ fun DevStudioIdeScreen(
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
                     // Open Tabs Bar
-                    if (uiState.openTabs.isNotEmpty() && uiState.viewMode != IdeViewMode.PREVIEW) {
+                    if (uiState.openTabs.isNotEmpty() && uiState.viewMode != IdeViewMode.PREVIEW && uiState.viewMode != IdeViewMode.DIAGNOSTICS) {
                         OpenTabsRow(
                             openTabs = uiState.openTabs,
                             activeFilePath = uiState.activeFilePath,
@@ -261,11 +298,19 @@ fun DevStudioIdeScreen(
                                     )
                                 }
                             }
+                            IdeViewMode.DIAGNOSTICS -> {
+                                DiagnosticConsoleView(
+                                    logs = uiState.diagnosticLogs,
+                                    onRunLinter = onRunLinter,
+                                    onClearLogs = onClearDiagnosticLogs,
+                                    onSendDiagnosticsToAi = onSendDiagnosticsToAi
+                                )
+                            }
                         }
                     }
 
                     // Mobile Quick Symbol Toolbar
-                    if (uiState.viewMode != IdeViewMode.PREVIEW) {
+                    if (uiState.viewMode == IdeViewMode.EDITOR || uiState.viewMode == IdeViewMode.SPLIT) {
                         QuickSymbolBar(onSymbolClick = onInsertSymbol)
                     }
                 }
@@ -301,23 +346,16 @@ fun DevStudioIdeScreen(
             onCreateFolder = onCreateFolder
         )
     }
-
-    if (uiState.showAiSettingsDialog) {
-        AiSettingsDialog(
-            selectedProvider = uiState.selectedAiProvider,
-            openRouterApiKey = uiState.openRouterApiKey,
-            customGeminiApiKey = uiState.customGeminiApiKey,
-            onDismiss = onDismissAiSettings,
-            onSaveSettings = onSaveAiSettings
-        )
-    }
 }
 
 @Composable
 fun IdeTopAppBar(
+    projectName: String,
     activeFilePath: String?,
     hasUnsavedChanges: Boolean,
     viewMode: IdeViewMode,
+    errorCount: Int,
+    onBackToWorkspace: () -> Unit,
     onOpenDrawer: () -> Unit,
     onSaveFile: () -> Unit,
     onSetViewMode: (IdeViewMode) -> Unit,
@@ -328,10 +366,18 @@ fun IdeTopAppBar(
             .fillMaxWidth()
             .background(EditorSurface)
             .statusBarsPadding()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onOpenDrawer) {
+        IconButton(onClick = onBackToWorkspace, modifier = Modifier.size(36.dp)) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Volver al Espacio de Trabajo",
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        IconButton(onClick = onOpenDrawer, modifier = Modifier.size(36.dp)) {
             Icon(
                 imageVector = Icons.Default.Menu,
                 contentDescription = "Abrir explorador",
@@ -341,56 +387,50 @@ fun IdeTopAppBar(
 
         Spacer(modifier = Modifier.width(4.dp))
 
-        // App Title & Active File Badge
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f)
-        ) {
+        // App & Project Title
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "DevStudio",
+                text = projectName,
                 fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
-                color = MaterialTheme.colorScheme.onSurface
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1
             )
             if (activeFilePath != null) {
-                Spacer(modifier = Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(EditorPanelHeader)
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = activeFilePath,
-                            fontSize = 11.sp,
-                            color = LineNumberColor,
-                            fontFamily = FontFamily.Monospace
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = activeFilePath,
+                        fontSize = 10.sp,
+                        color = LineNumberColor,
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = 1
+                    )
+                    if (hasUnsavedChanges) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(5.dp)
+                                .clip(CircleShape)
+                                .background(SoftRed)
                         )
-                        if (hasUnsavedChanges) {
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(SoftRed)
-                            )
-                        }
                     }
                 }
             }
         }
 
         // Save Button
-        IconButton(onClick = onSaveFile) {
+        IconButton(onClick = onSaveFile, modifier = Modifier.size(36.dp)) {
             Icon(
                 imageVector = Icons.Default.Save,
                 contentDescription = "Guardar",
-                tint = if (hasUnsavedChanges) SoftRed else LineNumberColor
+                tint = if (hasUnsavedChanges) SoftRed else LineNumberColor,
+                modifier = Modifier.size(18.dp)
             )
         }
 
-        // View Mode Switcher
+        Spacer(modifier = Modifier.width(4.dp))
+
+        // View Mode Switcher Toolbar
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
@@ -400,46 +440,72 @@ fun IdeTopAppBar(
             IconButton(
                 onClick = { onSetViewMode(IdeViewMode.EDITOR) },
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(30.dp)
                     .clip(RoundedCornerShape(6.dp))
                     .background(if (viewMode == IdeViewMode.EDITOR) AccentBlue else Color.Transparent)
             ) {
                 Icon(
                     imageVector = Icons.Default.Code,
-                    contentDescription = "Modo Editor",
+                    contentDescription = "Editor",
                     tint = if (viewMode == IdeViewMode.EDITOR) EditorBackground else LineNumberColor,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(15.dp)
                 )
             }
 
             IconButton(
                 onClick = { onSetViewMode(IdeViewMode.PREVIEW) },
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(30.dp)
                     .clip(RoundedCornerShape(6.dp))
                     .background(if (viewMode == IdeViewMode.PREVIEW) AccentBlue else Color.Transparent)
             ) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Modo Vista Previa",
+                    contentDescription = "Vista Previa",
                     tint = if (viewMode == IdeViewMode.PREVIEW) EditorBackground else LineNumberColor,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(15.dp)
                 )
             }
 
             IconButton(
                 onClick = { onSetViewMode(IdeViewMode.SPLIT) },
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(30.dp)
                     .clip(RoundedCornerShape(6.dp))
                     .background(if (viewMode == IdeViewMode.SPLIT) AccentBlue else Color.Transparent)
             ) {
                 Icon(
                     imageVector = Icons.Default.Splitscreen,
-                    contentDescription = "Modo Pantalla Dividida",
+                    contentDescription = "Pantalla Dividida",
                     tint = if (viewMode == IdeViewMode.SPLIT) EditorBackground else LineNumberColor,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(15.dp)
                 )
+            }
+
+            IconButton(
+                onClick = { onSetViewMode(IdeViewMode.DIAGNOSTICS) },
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(if (viewMode == IdeViewMode.DIAGNOSTICS) AccentBlue else Color.Transparent)
+            ) {
+                Box {
+                    Icon(
+                        imageVector = Icons.Default.BugReport,
+                        contentDescription = "Consola Diagnóstico / Linter",
+                        tint = if (viewMode == IdeViewMode.DIAGNOSTICS) EditorBackground else if (errorCount > 0) SoftRed else LineNumberColor,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    if (errorCount > 0 && viewMode != IdeViewMode.DIAGNOSTICS) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(SoftRed)
+                                .align(Alignment.TopEnd)
+                        )
+                    }
+                }
             }
         }
     }

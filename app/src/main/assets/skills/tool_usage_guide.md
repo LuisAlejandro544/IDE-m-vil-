@@ -30,6 +30,10 @@ Esta habilidad enseña al Agente de IA a utilizar sus herramientas interactivas 
 - **Descripción**: Elimina un archivo o directorio completo del workspace.
 - **Cuándo usar**: Solo cuando el usuario solicite explícitamente eliminar un elemento.
 
+### 6. `get_diagnostics()`
+- **Descripción**: Consulta los registros activos de la Consola de Diagnóstico / Linter en Vivo para el proyecto actual.
+- **Cuándo usar**: Úsalo cuando ocurra un error de sintaxis, comportamiento inesperado o el usuario te pida depurar/resolver fallos en el código. Devuelve advertencias, errores de sintaxis y registros del sistema.
+
 ---
 
 ## ⚠️ Reglas Generales de Conducta de Herramientas

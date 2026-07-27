@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 data class ProjectFileEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    val projectId: Long = 1,
     val name: String,
     val path: String, // e.g. "/index.html" or "/src/style.css"
     val content: String,

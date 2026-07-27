@@ -8,20 +8,32 @@ import com.example.data.api.AiAgentService
 import com.example.data.api.AiProvider
 import com.example.data.db.AppDatabase
 import com.example.data.db.ChatMessageEntity
+import com.example.data.db.DiagnosticLogEntity
+import com.example.data.db.ProjectEntity
 import com.example.data.db.ProjectFileEntity
 import com.example.data.repository.IdeRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 enum class IdeViewMode {
     EDITOR,
     PREVIEW,
-    SPLIT
+    SPLIT,
+    DIAGNOSTICS
 }
+
+private data class ProjectState(
+    val currentProjectId: Long?,
+    val currentProject: ProjectEntity?,
+    val projects: List<ProjectEntity>
+)
 
 private data class EditorState(
     val files: List<ProjectFileEntity>,
@@ -31,22 +43,27 @@ private data class EditorState(
     val savedContent: String
 )
 
-private data class ViewState(
+private data class UiControlState(
     val viewMode: IdeViewMode,
     val isChatOpen: Boolean,
+    val isAiLoading: Boolean,
+    val showAiSettingsDialog: Boolean,
     val showNewFileDialog: Boolean,
     val toastMessage: String?
 )
 
-private data class AiState(
+private data class AiAndDiagnosticsState(
     val chatMessages: List<ChatMessageEntity>,
-    val isAiLoading: Boolean,
+    val diagnosticLogs: List<DiagnosticLogEntity>,
     val selectedAiProvider: AiProvider,
     val openRouterApiKey: String,
     val customGeminiApiKey: String
 )
 
 data class IdeUiState(
+    val currentProjectId: Long? = null,
+    val currentProject: ProjectEntity? = null,
+    val projects: List<ProjectEntity> = emptyList(),
     val files: List<ProjectFileEntity> = emptyList(),
     val openTabs: List<String> = emptyList(),
     val activeFilePath: String? = null,
@@ -55,6 +72,7 @@ data class IdeUiState(
     val viewMode: IdeViewMode = IdeViewMode.EDITOR,
     val isChatOpen: Boolean = false,
     val chatMessages: List<ChatMessageEntity> = emptyList(),
+    val diagnosticLogs: List<DiagnosticLogEntity> = emptyList(),
     val isAiLoading: Boolean = false,
     val selectedAiProvider: AiProvider = AiProvider.GEMINI,
     val openRouterApiKey: String = "",
@@ -64,16 +82,25 @@ data class IdeUiState(
     val pendingActionMessage: String? = null
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class IdeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = AppDatabase.getDatabase(application)
-    private val repository = IdeRepository(db.projectFileDao(), db.chatMessageDao())
+    private val repository = IdeRepository(
+        projectDao = db.projectDao(),
+        projectFileDao = db.projectFileDao(),
+        chatMessageDao = db.chatMessageDao(),
+        diagnosticLogDao = db.diagnosticLogDao()
+    )
     private val aiAgentService = AiAgentService()
 
     private val prefs = application.getSharedPreferences("devstudio_ai_prefs", Context.MODE_PRIVATE)
 
-    private val _openTabs = MutableStateFlow<List<String>>(listOf("/index.html", "/style.css", "/script.js"))
-    private val _activeFilePath = MutableStateFlow<String?>("/index.html")
+    private val _currentProjectId = MutableStateFlow<Long?>(null)
+    private val _currentProject = MutableStateFlow<ProjectEntity?>(null)
+
+    private val _openTabs = MutableStateFlow<List<String>>(emptyList())
+    private val _activeFilePath = MutableStateFlow<String?>(null)
     private val _editorContent = MutableStateFlow<String>("")
     private val _savedContent = MutableStateFlow<String>("")
     private val _viewMode = MutableStateFlow(IdeViewMode.EDITOR)
@@ -88,57 +115,87 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
     private val _showNewFileDialog = MutableStateFlow(false)
     private val _toastMessage = MutableStateFlow<String?>(null)
 
+    // Dynamic flows based on current selected project
+    private val activeFilesFlow = _currentProjectId.flatMapLatest { projectId ->
+        if (projectId == null) flowOf(emptyList())
+        else repository.getFilesForProject(projectId)
+    }
+
+    private val activeMessagesFlow = _currentProjectId.flatMapLatest { projectId ->
+        if (projectId == null) flowOf(emptyList())
+        else repository.getChatMessagesForProject(projectId)
+    }
+
+    private val activeLogsFlow = _currentProjectId.flatMapLatest { projectId ->
+        if (projectId == null) flowOf(emptyList())
+        else repository.getDiagnosticLogsForProject(projectId)
+    }
+
+    private val projectStateFlow = combine(
+        _currentProjectId,
+        _currentProject,
+        repository.allProjects
+    ) { projectId, currentProj, projectsList ->
+        ProjectState(projectId, currentProj, projectsList)
+    }
+
     private val editorStateFlow = combine(
-        repository.allFiles,
+        activeFilesFlow,
         _openTabs,
         _activeFilePath,
         _editorContent,
         _savedContent
-    ) { files, tabs, activePath, editorText, savedText ->
-        EditorState(files, tabs, activePath, editorText, savedText)
+    ) { filesList, tabs, activePath, editorText, savedText ->
+        EditorState(filesList, tabs, activePath, editorText, savedText)
     }
 
-    private val viewStateFlow = combine(
-        _viewMode,
-        _isChatOpen,
-        _showNewFileDialog,
-        _toastMessage
-    ) { viewMode, isChatOpen, showNewFile, toast ->
-        ViewState(viewMode, isChatOpen, showNewFile, toast)
+    private val uiControlStateFlow = combine(
+        combine(_viewMode, _isChatOpen, _isAiLoading) { vm, isChat, isLoading ->
+            Triple(vm, isChat, isLoading)
+        },
+        combine(_showAiSettingsDialog, _showNewFileDialog, _toastMessage) { showSettings, showNewFile, toast ->
+            Triple(showSettings, showNewFile, toast)
+        }
+    ) { (vm, isChat, isLoading), (showSettings, showNewFile, toast) ->
+        UiControlState(vm, isChat, isLoading, showSettings, showNewFile, toast)
     }
 
-    private val aiStateFlow = combine(
-        repository.chatMessages,
-        _isAiLoading,
+    private val aiAndDiagnosticsStateFlow = combine(
+        activeMessagesFlow,
+        activeLogsFlow,
         _selectedAiProvider,
         _openRouterApiKey,
         _customGeminiApiKey
-    ) { msgs, aiLoading, provider, openRouterKey, geminiKey ->
-        AiState(msgs, aiLoading, provider, openRouterKey, geminiKey)
+    ) { msgs, logs, provider, openRouterKey, geminiKey ->
+        AiAndDiagnosticsState(msgs, logs, provider, openRouterKey, geminiKey)
     }
 
     val uiState: StateFlow<IdeUiState> = combine(
+        projectStateFlow,
         editorStateFlow,
-        viewStateFlow,
-        aiStateFlow,
-        _showAiSettingsDialog
-    ) { editor, view, ai, showSettings ->
+        uiControlStateFlow,
+        aiAndDiagnosticsStateFlow
+    ) { proj, ed, ctrl, ai ->
         IdeUiState(
-            files = editor.files,
-            openTabs = editor.openTabs,
-            activeFilePath = editor.activeFilePath,
-            activeFileContent = editor.editorContent,
-            hasUnsavedChanges = editor.editorContent != editor.savedContent,
-            viewMode = view.viewMode,
-            isChatOpen = view.isChatOpen,
+            currentProjectId = proj.currentProjectId,
+            currentProject = proj.currentProject,
+            projects = proj.projects,
+            files = ed.files,
+            openTabs = ed.openTabs,
+            activeFilePath = ed.activeFilePath,
+            activeFileContent = ed.editorContent,
+            hasUnsavedChanges = ed.editorContent != ed.savedContent,
+            viewMode = ctrl.viewMode,
+            isChatOpen = ctrl.isChatOpen,
             chatMessages = ai.chatMessages,
-            isAiLoading = ai.isAiLoading,
+            diagnosticLogs = ai.diagnosticLogs,
+            isAiLoading = ctrl.isAiLoading,
             selectedAiProvider = ai.selectedAiProvider,
             openRouterApiKey = ai.openRouterApiKey,
             customGeminiApiKey = ai.customGeminiApiKey,
-            showAiSettingsDialog = showSettings,
-            showNewFileDialog = view.showNewFileDialog,
-            pendingActionMessage = view.toastMessage
+            showAiSettingsDialog = ctrl.showAiSettingsDialog,
+            showNewFileDialog = ctrl.showNewFileDialog,
+            pendingActionMessage = ctrl.toastMessage
         )
     }.stateIn(
         scope = viewModelScope,
@@ -147,15 +204,67 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     init {
-        // Load saved AI Preferences
         val savedProviderName = prefs.getString("ai_provider", AiProvider.GEMINI.name) ?: AiProvider.GEMINI.name
         _selectedAiProvider.value = try { AiProvider.valueOf(savedProviderName) } catch (e: Exception) { AiProvider.GEMINI }
         _openRouterApiKey.value = prefs.getString("openrouter_api_key", "") ?: ""
         _customGeminiApiKey.value = prefs.getString("gemini_api_key", "") ?: ""
 
         viewModelScope.launch {
-            repository.ensureDefaultFilesExist()
-            selectFile("/index.html")
+            repository.ensureDefaultProjectsExist()
+        }
+    }
+
+    fun openProject(projectId: Long) {
+        viewModelScope.launch {
+            val proj = repository.getProjectById(projectId)
+            if (proj != null) {
+                _currentProjectId.value = projectId
+                _currentProject.value = proj
+
+                _openTabs.value = listOf("/index.html", "/src/main/java/MainActivity.kt", "/src/main.rs", "/server.js", "/cpp/engine.cpp")
+
+                val primaryFile = repository.getFileByPath(projectId, "/index.html")
+                    ?: repository.getFileByPath(projectId, "/src/main/java/MainActivity.kt")
+                    ?: repository.getFileByPath(projectId, "/src/main.rs")
+                    ?: repository.getFileByPath(projectId, "/server.js")
+
+                if (primaryFile != null) {
+                    selectFile(primaryFile.path)
+                } else {
+                    _activeFilePath.value = null
+                    _editorContent.value = ""
+                    _savedContent.value = ""
+                }
+
+                repository.runLinterAnalysis(projectId)
+            }
+        }
+    }
+
+    fun closeProject() {
+        _currentProjectId.value = null
+        _currentProject.value = null
+        _activeFilePath.value = null
+        _editorContent.value = ""
+        _savedContent.value = ""
+        _openTabs.value = emptyList()
+    }
+
+    fun createProject(name: String, description: String, framework: String) {
+        viewModelScope.launch {
+            val newId = repository.createProject(name, description, framework)
+            _toastMessage.value = "✨ Proyecto '$name' creado con éxito."
+            openProject(newId)
+        }
+    }
+
+    fun deleteProject(projectId: Long) {
+        viewModelScope.launch {
+            repository.deleteProject(projectId)
+            if (_currentProjectId.value == projectId) {
+                closeProject()
+            }
+            _toastMessage.value = "Proyecto eliminado."
         }
     }
 
@@ -185,8 +294,9 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectFile(path: String) {
+        val projectId = _currentProjectId.value ?: return
         viewModelScope.launch {
-            val file = repository.getFileByPath(path)
+            val file = repository.getFileByPath(projectId, path)
             if (file != null) {
                 if (!_openTabs.value.contains(path)) {
                     _openTabs.value = _openTabs.value + path
@@ -203,10 +313,11 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveCurrentFile() {
+        val projectId = _currentProjectId.value ?: return
         val currentPath = _activeFilePath.value ?: return
         val currentText = _editorContent.value
         viewModelScope.launch {
-            repository.updateFileContent(currentPath, currentText)
+            repository.updateFileContent(projectId, currentPath, currentText)
             _savedContent.value = currentText
             _toastMessage.value = "Archivo guardado: $currentPath"
         }
@@ -230,12 +341,13 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun createNewFile(fileName: String, initialContent: String = "", parentPath: String = "/") {
+        val projectId = _currentProjectId.value ?: return
         if (fileName.isBlank()) return
         val cleanName = fileName.trim().removePrefix("/")
         val cleanParent = if (parentPath.endsWith("/") && parentPath != "/") parentPath.dropLast(1) else parentPath
         val fullPath = if (cleanParent == "/") "/$cleanName" else "$cleanParent/$cleanName"
         viewModelScope.launch {
-            repository.createFile(cleanName, fullPath, initialContent, cleanParent)
+            repository.createFile(projectId, cleanName, fullPath, initialContent, cleanParent)
             _showNewFileDialog.value = false
             selectFile(fullPath)
             _toastMessage.value = "Archivo creado: $fullPath"
@@ -243,20 +355,22 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun createNewFolder(folderName: String, parentPath: String = "/") {
+        val projectId = _currentProjectId.value ?: return
         if (folderName.isBlank()) return
         val cleanName = folderName.trim().removePrefix("/")
         val cleanParent = if (parentPath.endsWith("/") && parentPath != "/") parentPath.dropLast(1) else parentPath
         val fullPath = if (cleanParent == "/") "/$cleanName" else "$cleanParent/$cleanName"
         viewModelScope.launch {
-            repository.createDirectory(cleanName, cleanParent)
+            repository.createDirectory(projectId, cleanName, cleanParent)
             _showNewFileDialog.value = false
             _toastMessage.value = "Carpeta creada: $fullPath"
         }
     }
 
     fun deleteFile(file: ProjectFileEntity) {
+        val projectId = _currentProjectId.value ?: return
         viewModelScope.launch {
-            repository.deleteFile(file.id)
+            repository.deleteFile(projectId, file.id)
             if (file.isDirectory) {
                 val tabsToClose = _openTabs.value.filter { it == file.path || it.startsWith("${file.path}/") }
                 tabsToClose.forEach { closeTab(it) }
@@ -280,24 +394,64 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
         _showNewFileDialog.value = show
     }
 
+    // --- Diagnostic Console & Linter ---
+
+    fun runLinterAnalysis() {
+        val projectId = _currentProjectId.value ?: return
+        viewModelScope.launch {
+            repository.runLinterAnalysis(projectId)
+            _toastMessage.value = "🔍 Análisis de Linter completado"
+        }
+    }
+
+    fun clearDiagnosticLogs() {
+        val projectId = _currentProjectId.value ?: return
+        viewModelScope.launch {
+            repository.clearDiagnosticLogs(projectId)
+            _toastMessage.value = "Consola de Diagnóstico limpia"
+        }
+    }
+
+    fun sendDiagnosticsToAi() {
+        val projectId = _currentProjectId.value ?: return
+        val currentLogs = uiState.value.diagnosticLogs
+        if (currentLogs.isEmpty()) {
+            _toastMessage.value = "No hay registros para enviar a la IA."
+            return
+        }
+
+        val errorsSummary = currentLogs.joinToString("\n") { log ->
+            "-[${log.level}][${log.source}] ${log.filePath ?: ""}:${log.lineNumber ?: 0} -> ${log.message}"
+        }
+
+        val prompt = "Por favor revisa estos logs de la Consola de Diagnóstico y Linter de mi proyecto y ayúdame a corregirlos:\n```\n$errorsSummary\n```"
+        _isChatOpen.value = true
+        sendAgentPrompt(prompt)
+    }
+
+    // --- Agent Communication ---
+
     fun sendAgentPrompt(userPrompt: String) {
+        val projectId = _currentProjectId.value ?: return
         if (userPrompt.isBlank()) return
 
         viewModelScope.launch {
-            // Save user message
             repository.addChatMessage(
-                ChatMessageEntity(
+                projectId = projectId,
+                message = ChatMessageEntity(
+                    projectId = projectId,
                     sender = "user",
                     text = userPrompt,
                     timestamp = System.currentTimeMillis()
                 )
             )
 
-            // Insert initial agent message for real-time streaming
             val agentMsgId = repository.addChatMessage(
-                ChatMessageEntity(
+                projectId = projectId,
+                message = ChatMessageEntity(
+                    projectId = projectId,
                     sender = "agent",
-                    text = "Thinking...",
+                    text = "Analizando código y diagnóstico...",
                     timestamp = System.currentTimeMillis()
                 )
             )
@@ -324,7 +478,7 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
                 openRouterApiKey = openRouterKey,
                 customGeminiApiKey = geminiKey,
                 onExecuteTool = { toolName, args ->
-                    executeAgentTool(toolName, args)
+                    executeAgentTool(projectId, toolName, args)
                 }
             ).collect { streamResult ->
                 repository.updateChatMessageContent(
@@ -339,7 +493,7 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun executeAgentTool(toolName: String, args: org.json.JSONObject): String {
+    private suspend fun executeAgentTool(projectId: Long, toolName: String, args: org.json.JSONObject): String {
         return when (toolName) {
             "get_project_structure" -> {
                 val filesList = uiState.value.files
@@ -353,7 +507,7 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
                 val path = args.optString("path")
                 if (path.isBlank()) "❌ Ruta de archivo requerida."
                 else {
-                    val f = repository.getFileByPath(path)
+                    val f = repository.getFileByPath(projectId, path)
                     if (f == null) "❌ Archivo '$path' no encontrado."
                     else "📄 Contenido de '$path':\n```\n${f.content}\n```"
                 }
@@ -366,9 +520,9 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
 
                 if (path.isBlank()) "❌ Ruta de archivo requerida."
                 else {
-                    val res = repository.editFileContentByTarget(path, targetContent, replacementContent)
+                    val res = repository.editFileContentByTarget(projectId, path, targetContent, replacementContent)
                     if (_activeFilePath.value == path) {
-                        val updated = repository.getFileByPath(path)
+                        val updated = repository.getFileByPath(projectId, path)
                         if (updated != null) {
                             _editorContent.value = updated.content
                             _savedContent.value = updated.content
@@ -386,7 +540,7 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
                     val cleanPath = if (path.startsWith("/")) path else "/$path"
                     val fileName = cleanPath.substringAfterLast('/')
                     val parent = if (cleanPath.count { it == '/' } > 1) cleanPath.substringBeforeLast('/') else "/"
-                    repository.createFile(fileName, cleanPath, content, parentPath = parent)
+                    repository.createFile(projectId, fileName, cleanPath, content, parentPath = parent)
                     selectFile(cleanPath)
                     "✅ Éxito: Archivo '$cleanPath' creado y abierto."
                 }
@@ -396,9 +550,21 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
                 val path = args.optString("path")
                 if (path.isBlank()) "❌ Ruta requerida."
                 else {
-                    val res = repository.deleteFileByPath(path)
+                    val res = repository.deleteFileByPath(projectId, path)
                     closeTab(path)
                     res
+                }
+            }
+
+            "get_diagnostics" -> {
+                val logs = repository.runLinterAnalysis(projectId)
+                if (logs.isEmpty()) "🟢 Consola de Diagnóstico: Sin errores reportados."
+                else {
+                    val sb = StringBuilder("🔍 Reporte de Consola de Diagnóstico & Linter:\n")
+                    logs.forEach { log ->
+                        sb.append("- [${log.level}][${log.source}] ${log.filePath ?: ""}:${log.lineNumber ?: 0} -> ${log.message}\n")
+                    }
+                    sb.toString()
                 }
             }
 
@@ -407,16 +573,17 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun applyAgentProposedCode(chatMessage: ChatMessageEntity) {
+        val projectId = _currentProjectId.value ?: return
         val path = chatMessage.targetFilePath ?: _activeFilePath.value ?: return
         val newCode = chatMessage.proposedCode ?: return
 
         viewModelScope.launch {
-            val existing = repository.getFileByPath(path)
+            val existing = repository.getFileByPath(projectId, path)
             if (existing != null) {
-                repository.updateFileContent(path, newCode)
+                repository.updateFileContent(projectId, path, newCode)
             } else {
                 val fileName = path.substringAfterLast('/')
-                repository.createFile(fileName, path, newCode)
+                repository.createFile(projectId, fileName, path, newCode)
             }
 
             repository.setMessageApplied(chatMessage.id)
@@ -441,8 +608,3 @@ class IdeViewModel(application: Application) : AndroidViewModel(application) {
         _editorContent.value = currentText + symbol
     }
 }
-
-// Internal tuple helper for combining state flows
-private data class Tuple7<A, B, C, D, E, F, G>(
-    val v1: A, val v2: B, val v3: C, val v4: D, val v5: E, val v6: F, val v7: G
-)

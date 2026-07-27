@@ -12,6 +12,9 @@ interface ChatMessageDao {
     @Query("SELECT * FROM chat_messages ORDER BY timestamp ASC")
     fun getAllMessages(): Flow<List<ChatMessageEntity>>
 
+    @Query("SELECT * FROM chat_messages WHERE projectId = :projectId ORDER BY timestamp ASC")
+    fun getMessagesForProject(projectId: Long): Flow<List<ChatMessageEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: ChatMessageEntity): Long
 
@@ -23,6 +26,9 @@ interface ChatMessageDao {
 
     @Query("UPDATE chat_messages SET isApplied = :isApplied WHERE id = :id")
     suspend fun setMessageApplied(id: Long, isApplied: Boolean = true)
+
+    @Query("DELETE FROM chat_messages WHERE projectId = :projectId")
+    suspend fun clearHistoryForProject(projectId: Long)
 
     @Query("DELETE FROM chat_messages")
     suspend fun clearHistory()
