@@ -24,9 +24,7 @@ jobs:
           cache: 'gradle'
 
       - name: Set up Rust toolchain
-        uses: actions/rust-lang/setup-rust@v1
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Gradle packages & Cargo
         uses: actions/cache@v4
